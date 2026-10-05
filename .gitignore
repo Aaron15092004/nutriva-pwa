@@ -1,0 +1,23 @@
+# Phụ thuộc & bản build
+node_modules/
+client/dist/
+client/dev-dist/
+
+# Bí mật — KHÔNG commit
+.env
+.env.*
+!.env.example
+
+# Tài liệu thiết kế / yêu cầu (không cần cho deploy)
+figma/
+*.docx
+design-system/
+.planning/
+.claude/
+
+# Khác
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

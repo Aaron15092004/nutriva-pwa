@@ -1,0 +1,74 @@
+{
+ "mealprep": {
+  "author": "Andy Li",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Salmon_Poke_Bowl_(S)_with_Spicy_mayo_sauce_-_Kitokito.jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "salad": {
+  "author": "Andy Li",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:NOT_avocado_on_toast_with_fried_egg_-_Black_Mocha_2025-08-12.jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "flatlay": {
+  "author": "www.Pixel.la Free Stock Photos",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Food-salad-healthy-vegetables-1_(23959011279).jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "fruitveg": {
+  "author": "Anagoria",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:20250315_Fruit_Platter_anagoria.jpg",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "chicken": {
+  "author": "Daderot",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Chicken_breast_and_salad_-_Massachusetts.jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "vietnam": {
+  "author": "Syced",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:August_2007_Meal_prepared_by_Vietnamese_students_in_Japan.jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "soup": {
+  "author": "Andy Li",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Beef_Pho_(M)_-_Milk_No_Sugar.jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "salmon": {
+  "author": "Daderot",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Grilled_salmon_and_asparagus_on_rice_-_Boston,_Massachusetts.jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "buddha": {
+  "author": "PizzaMan",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:BuddhaBowlLot.jpg",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "gym": {
+  "author": "Andy Li",
+  "license": "CC0",
+  "source": "https://commons.wikimedia.org/wiki/File:Fried_Tofu_Poke_Bowl_(S)_with_kimchi_sauce_-_Kitokito.jpg",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "nuts": {
+  "author": "Shisma",
+  "license": "CC BY 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:Oatmeal_porridge_with_fruits.jpg",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "tofu": {
+  "author": "MNXANL",
+  "license": "CC BY-SA 4.0",
+  "source": "https://commons.wikimedia.org/wiki/File:201504_%22March_Green%22_with_Tofu_Sheet.jpg",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ }
+}
