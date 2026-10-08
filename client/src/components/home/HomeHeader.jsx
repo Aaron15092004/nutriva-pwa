@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Sparkles, Bell } from 'lucide-react';
 import { Pill } from '../ds/index.jsx';
+import Nuti from '../mascot/Nuti.jsx';
 
 // Nền gradient xanh thương hiệu + các vòng tròn trang trí phía trên trang (theo Figma)
 export function HeroBackdrop() {
@@ -23,11 +24,11 @@ export function HeroBackdrop() {
 export function HomeHeader({ remindersLeft = 0 }) {
   return (
     <header className="flex items-center justify-between gap-4">
-      <Pill as={Link} to="/assistant" className="h-10 pl-1 pr-4 transition hover:shadow-card" aria-label="Hỏi trợ lý NUTRIVA">
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-light">
-          <img src="/brand/logo-mark.svg" alt="" className="h-5 w-auto" />
+      <Pill as={Link} to="/assistant" className="h-10 pl-1 pr-4 transition hover:shadow-card" aria-label="Hỏi Nuti, trợ lý dinh dưỡng NUTRIVA">
+        <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-brand-light">
+          <Nuti size={30} animated={false} />
         </span>
-        <span className="text-xs font-bold text-primary">Hỏi NUTRIVA</span>
+        <span className="text-xs font-bold text-primary">Hỏi Nuti</span>
         <Sparkles size={16} className="text-brand-main" aria-hidden="true" />
       </Pill>
       <Pill

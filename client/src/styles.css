@@ -374,8 +374,22 @@ textarea.textarea:focus { border-color: var(--primary-600); box-shadow: 0 0 0 3p
 a, button, [role='tab'], label { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 img { -webkit-user-drag: none; }
 
+/* ---------- Linh vật Nuti ---------- */
+.nuti-bob { animation: nuti-bob 2.8s ease-in-out infinite; }
+@keyframes nuti-bob { 50% { transform: translateY(-3px); } }
+.nuti-blink { animation: nuti-blink 4.5s infinite; }
+@keyframes nuti-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.nuti-sprout { animation: nuti-sprout 3.2s ease-in-out infinite; }
+@keyframes nuti-sprout { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(5deg); } }
+.nuti-wave { animation: nuti-wave 1.2s ease-in-out 3; }
+@keyframes nuti-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-18deg); } 75% { transform: rotate(12deg); } }
+.typing-dot { animation: typing 1.2s ease-in-out infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
 @media (min-width: 520px) {
   body { background: radial-gradient(circle at 20% 10%, #f8faf8 0, #f2f7e7 60%); }

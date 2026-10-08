@@ -30,7 +30,7 @@ export function replyByRules(message, user, products) {
     };
   }
 
-  if (has(t, 'vi sao', 'tai sao', 'sao chon')) {
+  if (has(t, 'vi sao', 'tai sao', 'sao chon', 'sua hat', 'sua nao', 'hop voi')) {
     return {
       text: top
         ? `Mình gợi ý ${top.name} vì: hương vị ${FLAVORS.find((f) => f.id === top.flavor)?.label.toLowerCase()}${top.flavor === profile.flavor ? ' đúng sở thích bạn đã chọn' : ''}, khoảng ${top.nutrition.kcal} kcal/chai phù hợp bữa ăn nhẹ (mục tiêu bữa nhẹ của bạn: ${h.meals.snack.min}–${h.meals.snack.max} kcal)${profile.allergies.length ? `, và không chứa ${profile.allergies.map(ingredientName).join(', ')}` : ''}.`
@@ -51,7 +51,14 @@ export function replyByRules(message, user, products) {
     };
   }
 
-  if (has(t, 'ke hoach', 'dieu chinh', 'thuc don', 'menu')) {
+  if (has(t, 'an chay', 'thuan chay', 'dam thuc vat')) {
+    return {
+      text: `Ăn chay vẫn đủ đạm nếu mỗi bữa có nguồn đạm thực vật: đậu phụ, đậu nành, đỗ đen, đậu trắng và các loại hạt. Mục tiêu đạm của bạn khoảng ${h.macros.protein} g/ngày — kết hợp ngũ cốc nguyên hạt với đậu đỗ để đủ axit amin. Bạn có thể thử kế hoạch "Thuần chay" trong mục Khám phá thực đơn.`,
+      link: { to: '/plan?tab=explore', label: 'Xem kế hoạch thuần chay' },
+    };
+  }
+
+  if (has(t, 'ke hoach', 'dieu chinh', 'thuc don', 'menu', 'an them', 'nen an', 'an gi')) {
     return {
       text: `Kế hoạch hiện tại theo mục tiêu ${goal}: ${fmt(h.targetKcal)} kcal/ngày (đạm ${h.macros.protein} g, bột đường ${h.macros.carb} g, béo ${h.macros.fat} g). Bạn có thể bấm "Đổi món" ở từng bữa trong trang Kế hoạch để thay món phù hợp hơn.`,
       link: { to: '/plan', label: 'Mở Kế hoạch' },
@@ -86,6 +93,6 @@ export function replyByRules(message, user, products) {
   }
 
   return {
-    text: 'Mình chưa hiểu rõ câu hỏi. Bạn thử hỏi về: "Vì sao chọn sữa này?", "Đổi set tự làm", "Điều chỉnh kế hoạch", "Chỉ số BMI của tôi" hoặc "Tôi muốn ít ngọt hơn" nhé.',
+    text: 'Mình chưa hiểu rõ câu hỏi. Bạn thử hỏi: "Sữa hạt nào hợp với mình?", "Hôm nay nên ăn gì?", "Chỉ số BMI của tôi", "Ăn chay có đủ đạm không?" hoặc "Uống bao nhiêu nước là đủ?" nhé.',
   };
 }

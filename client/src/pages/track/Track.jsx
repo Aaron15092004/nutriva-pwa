@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Droplets, Footprints, Bell, Sparkles, Laugh, Smile, Meh, Frown, Angry, Utensils } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Droplets, Footprints, Bell, Laugh, Smile, Meh, Frown, Angry, Utensils } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApi } from '../../lib/useApi.js';
@@ -8,6 +8,7 @@ import { api } from '../../lib/api.js';
 import { num, today, addDays, weekStart, longDate } from '../../lib/format.js';
 import { Segmented, Ring, Bar, Skeleton, Button } from '../../components/ui.jsx';
 import ComplianceChart, { complianceScore } from '../../components/ComplianceChart.jsx';
+import Nuti from '../../components/mascot/Nuti.jsx';
 import { sumLog } from '../../components/meals.js';
 
 const MOODS = [
@@ -169,8 +170,8 @@ export default function Track() {
           <ChevronRight size={20} className="chev" />
         </Link>
         <Link to="/assistant" className="card card-link">
-          <span className="icon-tile"><Sparkles size={22} /></span>
-          <span className="grow"><b style={{ display: 'block' }}>Trợ lý NUTRIVA</b><span className="small muted">Hỏi về sản phẩm, thực đơn và kế hoạch của bạn</span></span>
+          <Nuti size={44} animated={false} />
+          <span className="grow"><b style={{ display: 'block' }}>Hỏi Nuti</b><span className="small muted">Trợ lý dinh dưỡng: sản phẩm, thực đơn và kế hoạch của bạn</span></span>
           <ChevronRight size={20} className="chev" />
         </Link>
       </section>
