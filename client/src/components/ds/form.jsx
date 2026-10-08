@@ -15,7 +15,7 @@ export const TextField = forwardRef(function TextField({ id, label, icon: Icon, 
       <div
         className={cx(
           'flex h-14 items-center gap-2 rounded-lg border bg-white px-4 transition focus-within:ring-2',
-          error ? 'border-warm-dark focus-within:ring-warm-soft' : 'border-border focus-within:border-teal-main focus-within:ring-teal-soft',
+          error ? 'border-warm-dark focus-within:ring-warm-soft' : 'border-border focus-within:border-brand-main focus-within:ring-brand-soft',
         )}
       >
         {Icon && <Icon size={20} className="shrink-0 text-subtle" aria-hidden="true" />}
@@ -39,7 +39,7 @@ export const TextField = forwardRef(function TextField({ id, label, icon: Icon, 
   );
 });
 
-// Nhóm lựa chọn dạng thẻ (chọn 1): icon + nhãn + mô tả, thẻ đang chọn viền teal và dấu tích
+// Nhóm lựa chọn dạng thẻ (chọn 1): icon + nhãn + mô tả, thẻ đang chọn viền xanh thương hiệu và dấu tích
 export function ChoiceGroup({ label, options, value, onChange, icons, cols = 3, layout = 'stack' }) {
   const row = layout === 'row';
   return (
@@ -58,16 +58,16 @@ export function ChoiceGroup({ label, options, value, onChange, icons, cols = 3, 
               className={cx(
                 'relative flex rounded-lg border-2 p-2 text-left transition duration-150 active:scale-[0.98]',
                 row ? 'min-h-14 items-center gap-2 px-4' : 'min-h-24 flex-col items-center justify-center gap-1 text-center',
-                on ? 'border-teal-main bg-teal-light' : 'border-border bg-white hover:border-teal-soft',
+                on ? 'border-brand-main bg-brand-light' : 'border-border bg-white hover:border-brand-soft',
               )}
             >
-              {Icon && <Icon size={22} className={cx('shrink-0', on ? 'text-teal-dark' : 'text-subtle')} aria-hidden="true" />}
+              {Icon && <Icon size={22} className={cx('shrink-0', on ? 'text-brand-dark' : 'text-subtle')} aria-hidden="true" />}
               <span className="min-w-0">
-                <span className={cx('block text-sm font-bold leading-5', on ? 'text-teal-deep' : 'text-primary')}>{o.label}</span>
+                <span className={cx('block text-sm font-bold leading-5', on ? 'text-brand-deep' : 'text-primary')}>{o.label}</span>
                 {o.desc && <span className="block font-secondary text-xs text-muted">{o.desc}</span>}
               </span>
               {on && (
-                <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-teal-main text-white" aria-hidden="true">
+                <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-brand-main text-white" aria-hidden="true">
                   <Check size={12} strokeWidth={3} />
                 </span>
               )}
@@ -82,9 +82,9 @@ export function ChoiceGroup({ label, options, value, onChange, icons, cols = 3, 
 // Nút chính / phụ (cao 56px, bo tròn)
 export function PrimaryButton({ loading, children, variant = 'primary', className = '', ...props }) {
   const styles = {
-    primary: 'bg-teal-dark text-white hover:bg-teal-deep',
-    outline: 'border-2 border-teal-dark bg-white text-teal-dark hover:bg-teal-light',
-    soft: 'bg-white text-primary shadow-pill hover:bg-teal-light',
+    primary: 'bg-brand-dark text-white hover:bg-brand-deep',
+    outline: 'border-2 border-brand-dark bg-white text-brand-dark hover:bg-brand-light',
+    soft: 'bg-white text-primary shadow-pill hover:bg-brand-light',
   };
   return (
     <button

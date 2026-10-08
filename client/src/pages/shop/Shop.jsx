@@ -23,14 +23,14 @@ const strip = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').re
 // Banner gói sữa giao định kỳ
 function SubscribeBanner({ from }) {
   return (
-    <Link to="/shop/subscribe" className="relative flex min-h-36 overflow-hidden rounded-xl bg-teal-core text-white shadow-card transition active:scale-[0.99]">
+    <Link to="/shop/subscribe" className="relative flex min-h-36 overflow-hidden rounded-xl bg-brand-core text-white shadow-card transition active:scale-[0.99]">
       <div className="relative z-10 flex flex-1 flex-col items-start justify-center gap-2 p-4 pr-0">
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 font-secondary text-2xs font-bold uppercase tracking-wider text-teal-soft">
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 font-secondary text-2xs font-bold uppercase tracking-wider text-brand-soft">
           <CalendarClock size={12} aria-hidden="true" /> Giao định kỳ
         </span>
         <p className="text-lg font-extrabold leading-6">Gói sữa hạt mỗi tuần</p>
-        <p className="text-xs text-teal-soft">5 hoặc 10 chai, chọn ngày giao, tạm dừng bất cứ lúc nào</p>
-        <span className="mt-1 inline-flex h-8 items-center gap-1 rounded-full bg-white px-4 text-xs font-bold text-teal-core">
+        <p className="text-xs text-brand-soft">5 hoặc 10 chai, chọn ngày giao, tạm dừng bất cứ lúc nào</p>
+        <span className="mt-1 inline-flex h-8 items-center gap-1 rounded-full bg-white px-4 text-xs font-bold text-brand-core">
           {from ? `Từ ${money(from)}/tuần` : 'Xem gói'} <ChevronRight size={14} aria-hidden="true" />
         </span>
       </div>
@@ -68,7 +68,7 @@ export default function Shop() {
       <div className="relative flex flex-col gap-6 px-4 pt-6">
         <header className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="font-display text-2xl font-bold text-teal-core [font-variation-settings:'SOFT'_100]">Cửa hàng</h1>
+            <h1 className="font-display text-2xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">Cửa hàng</h1>
             <p className="font-secondary text-xs font-medium text-secondary">Sữa hạt tươi & set tự làm tại nhà</p>
           </div>
           <span className="flex gap-2">
@@ -84,7 +84,7 @@ export default function Shop() {
           </span>
         </header>
 
-        <label className="flex h-12 items-center gap-2 rounded-full bg-white px-4 shadow-pill focus-within:ring-2 focus-within:ring-teal-soft">
+        <label className="flex h-12 items-center gap-2 rounded-full bg-white px-4 shadow-pill focus-within:ring-2 focus-within:ring-brand-soft">
           <Search size={20} className="shrink-0 text-subtle" aria-hidden="true" />
           <input
             type="search"
@@ -106,9 +106,9 @@ export default function Shop() {
         {!q && picks.length > 0 && (
           <section aria-labelledby="picks-title" className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
-              <Sparkles size={20} className="text-teal-main" aria-hidden="true" />
+              <Sparkles size={20} className="text-brand-main" aria-hidden="true" />
               <h2 id="picks-title" className="flex-1 text-lg font-extrabold text-primary">Hợp khẩu vị của bạn</h2>
-              <span className="rounded-full bg-white px-2 py-1 font-secondary text-xs font-semibold text-teal-dark shadow-pill">{flavorLabel}</span>
+              <span className="rounded-full bg-white px-2 py-1 font-secondary text-xs font-semibold text-brand-dark shadow-pill">{flavorLabel}</span>
             </div>
             <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {picks.map((p) => (

@@ -24,14 +24,14 @@ export default function WeekDateSelector({ value, onChange, progress = {} }) {
             onClick={() => onChange(d)}
             className={cx(
               'mx-auto flex h-16 w-10 flex-col items-center gap-1 rounded-full pt-1 transition duration-200 ease-out',
-              selected ? 'bg-teal-dark shadow-card' : 'bg-white hover:bg-teal-light',
+              selected ? 'bg-brand-dark shadow-card' : 'bg-white hover:bg-brand-light',
             )}
           >
             <span className="relative grid h-8 w-8 place-items-center">
-              <span className={cx('absolute inset-0 rounded-full', selected ? 'bg-teal-core' : d === t ? 'bg-teal-soft' : 'bg-weekday')} />
+              <span className={cx('absolute inset-0 rounded-full', selected ? 'bg-brand-core' : d === t ? 'bg-brand-soft' : 'bg-weekday')} />
               {pct > 0 && (
                 <svg viewBox="0 0 32 32" className="absolute inset-0 -rotate-90" aria-hidden="true">
-                  <circle cx="16" cy="16" r={R} fill="none" strokeWidth="2" strokeLinecap="round" className={selected ? 'stroke-teal-accent' : 'stroke-teal-main'} strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
+                  <circle cx="16" cy="16" r={R} fill="none" strokeWidth="2" strokeLinecap="round" className={selected ? 'stroke-brand-accent' : 'stroke-brand-main'} strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
                 </svg>
               )}
               <span className={cx('relative font-secondary text-xs font-semibold', selected ? 'text-white' : 'text-secondary')}>{dayNum(d)}</span>

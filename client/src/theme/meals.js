@@ -7,12 +7,12 @@ export const MEAL_THEME = {
   breakfast: {
     icon: EggFried,
     card: 'bg-breakfast-card',
-    track: 'bg-teal-soft',
-    fill: 'bg-teal-main',
-    hint: 'text-teal-deep',
-    iconColor: 'text-teal-deep',
+    track: 'bg-brand-soft',
+    fill: 'bg-brand-main',
+    hint: 'text-brand-deep',
+    iconColor: 'text-brand-deep',
     bg: colors.breakfast.card,
-    fg: colors.teal.deep,
+    fg: colors.brand.deep,
   },
   lunch: {
     icon: Soup,

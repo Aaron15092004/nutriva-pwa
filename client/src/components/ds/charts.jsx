@@ -46,7 +46,7 @@ export function BarChart({ data, goal, unit = '', caption, activeKey, height = 1
                 onMouseLeave={() => setHover(null)}
               >
                 {hover === d.key && (
-                  <span className="absolute z-10 whitespace-nowrap rounded-sm bg-teal-core px-2 py-1 font-secondary text-xs text-white" style={{ bottom: h + 32 }}>
+                  <span className="absolute z-10 whitespace-nowrap rounded-sm bg-brand-core px-2 py-1 font-secondary text-xs text-white" style={{ bottom: h + 32 }}>
                     {d.value == null ? 'Chưa có dữ liệu' : `${fmt(d.value, 1)} ${unit}`}
                   </span>
                 )}
@@ -110,7 +110,7 @@ const BMI_MIN = 15;
 const BMI_MAX = 35;
 const BMI_BANDS = [
   { to: 18.5, color: colors.water.icon },
-  { to: 23, color: colors.teal.main },
+  { to: 23, color: colors.brand.main },
   { to: 25, color: colors.snacks.card },
   { to: 30, color: colors.warm.main },
   { to: 35, color: colors.warm.dark },

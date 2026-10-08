@@ -32,7 +32,7 @@ function Progress({ step }) {
       <div className="grid grid-cols-4 gap-1" aria-hidden="true">
         {[0, 1, 2, 3].map((i) => (
           <span key={i} className="h-1.5 overflow-hidden rounded-full bg-white/80">
-            <span className={cx('block h-full rounded-full bg-teal-main transition-[width] duration-300 ease-out', i <= step ? 'w-full' : 'w-0')} />
+            <span className={cx('block h-full rounded-full bg-brand-main transition-[width] duration-300 ease-out', i <= step ? 'w-full' : 'w-0')} />
           </span>
         ))}
       </div>
@@ -109,7 +109,7 @@ export default function Onboarding() {
   const s = STEPS[step];
   return (
     <>
-      <main className="relative min-h-dvh overflow-x-clip bg-gradient-to-b from-teal-light via-background to-background px-4 pb-[calc(112px+var(--safe-b))] pt-[max(16px,env(safe-area-inset-top))]">
+      <main className="relative min-h-dvh overflow-x-clip bg-gradient-to-b from-brand-light via-background to-background px-4 pb-[calc(112px+var(--safe-b))] pt-[max(16px,env(safe-area-inset-top))]">
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-4">
             <CircleButton icon={ArrowLeft} label={step === 0 ? 'Quay lại trang chào' : 'Bước trước'} onClick={back} className="bg-white text-primary shadow-pill" size={48} iconSize={22} />
@@ -119,7 +119,7 @@ export default function Onboarding() {
           {/* key theo bước → nội dung mới mờ dần vào */}
           <div key={step} className="page-fade flex flex-col gap-6">
             <header className="flex flex-col gap-2">
-              <h1 className="font-display text-3xl font-bold text-teal-core [font-variation-settings:'SOFT'_100]">{s.title}</h1>
+              <h1 className="font-display text-3xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">{s.title}</h1>
               <p className="text-base text-secondary">{s.sub}</p>
             </header>
 
@@ -128,7 +128,7 @@ export default function Onboarding() {
             {step === 2 && (
               <div className="flex flex-col gap-6">
                 <StepAllergy v={v} set={set} />
-                <label className={cx('flex cursor-pointer items-start gap-4 rounded-xl border-2 bg-white p-4 transition', consent ? 'border-teal-main' : errors.consent ? 'border-warm-dark' : 'border-border')}>
+                <label className={cx('flex cursor-pointer items-start gap-4 rounded-xl border-2 bg-white p-4 transition', consent ? 'border-brand-main' : errors.consent ? 'border-warm-dark' : 'border-border')}>
                   <input
                     type="checkbox"
                     className="peer sr-only"
@@ -139,7 +139,7 @@ export default function Onboarding() {
                     }}
                   />
                   <span
-                    className={cx('mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md border-2 transition peer-focus-visible:ring-2 peer-focus-visible:ring-teal-soft', consent ? 'border-teal-main bg-teal-main text-white' : 'border-divider bg-white text-transparent')}
+                    className={cx('mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md border-2 transition peer-focus-visible:ring-2 peer-focus-visible:ring-brand-soft', consent ? 'border-brand-main bg-brand-main text-white' : 'border-divider bg-white text-transparent')}
                     aria-hidden="true"
                   >
                     <Check size={16} strokeWidth={3} />
@@ -178,7 +178,7 @@ export default function Onboarding() {
                 <ErrorNote error={serverError} />
                 <p className="text-center text-sm text-muted">
                   Đã có tài khoản?{' '}
-                  <Link to="/login" className="font-bold text-teal-dark hover:text-teal-deep">
+                  <Link to="/login" className="font-bold text-brand-dark hover:text-brand-deep">
                     Đăng nhập
                   </Link>
                 </p>

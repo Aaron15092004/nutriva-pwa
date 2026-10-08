@@ -46,7 +46,7 @@ export default function RecommendationCard({ item, mealLabel, favorite, tracked,
           disabled={busy || tracked}
           className={cx(
             'flex h-12 items-center justify-center gap-2 rounded-md text-base font-bold transition duration-150 active:scale-[0.98] disabled:cursor-default',
-            tracked ? 'bg-teal-light text-teal-dark' : 'bg-primary text-white hover:bg-dark',
+            tracked ? 'bg-brand-light text-brand-dark' : 'bg-primary text-white hover:bg-dark',
           )}
         >
           {tracked ? <Check size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}

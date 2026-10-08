@@ -48,13 +48,13 @@ function InstallCard() {
     }
   };
   return (
-    <aside className="flex items-center gap-4 rounded-lg bg-teal-core p-4 text-white shadow-card">
+    <aside className="flex items-center gap-4 rounded-lg bg-brand-core p-4 text-white shadow-card">
       <Download size={24} aria-hidden="true" className="shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold">{pwa.installedOnDevice ? 'NUTRIVA đã có trên máy bạn' : 'Cài đặt NUTRIVA'}</p>
-        <p className="text-xs text-teal-soft">{pwa.installedOnDevice ? 'Mở từ màn hình chính để dùng mượt hơn' : 'Mở nhanh từ màn hình chính, như ứng dụng'}</p>
+        <p className="text-xs text-brand-soft">{pwa.installedOnDevice ? 'Mở từ màn hình chính để dùng mượt hơn' : 'Mở nhanh từ màn hình chính, như ứng dụng'}</p>
       </div>
-      <button type="button" onClick={pwa.install} className="h-10 shrink-0 rounded-full bg-white px-4 text-sm font-bold text-teal-core">{pwa.installedOnDevice ? 'Mở app' : 'Cài đặt'}</button>
+      <button type="button" onClick={pwa.install} className="h-10 shrink-0 rounded-full bg-white px-4 text-sm font-bold text-brand-core">{pwa.installedOnDevice ? 'Mở app' : 'Cài đặt'}</button>
       <button type="button" onClick={hide} aria-label="Ẩn gợi ý cài đặt" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10">
         <X size={18} aria-hidden="true" />
       </button>
@@ -166,7 +166,7 @@ export default function Home() {
 
         <div>
           <p className="font-secondary text-xs font-medium text-secondary">{longDate(date)}</p>
-          <h1 className="font-display text-2xl font-bold text-teal-core [font-variation-settings:'SOFT'_100]">Chào {user.name}!</h1>
+          <h1 className="font-display text-2xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">Chào {user.name}!</h1>
         </div>
 
         <WeekDateSelector value={date} onChange={setDate} progress={weekProgress} />
@@ -242,8 +242,8 @@ export default function Home() {
                   className="flex w-40 shrink-0 snap-start flex-col items-start gap-2 rounded-lg bg-white p-4 text-left shadow-card transition active:scale-[0.98]"
                 >
                   <span className="flex w-full items-center justify-between">
-                    <span className="grid h-10 w-10 place-items-center rounded-md bg-teal-light text-teal-dark" aria-hidden="true"><I size={20} /></span>
-                    <Plus size={20} className="text-teal-dark" aria-hidden="true" />
+                    <span className="grid h-10 w-10 place-items-center rounded-md bg-brand-light text-brand-dark" aria-hidden="true"><I size={20} /></span>
+                    <Plus size={20} className="text-brand-dark" aria-hidden="true" />
                   </span>
                   <span className="line-clamp-1 text-sm font-bold text-primary">{f.name}</span>
                   <span className="font-secondary text-xs text-muted">{fmt(f.kcal)} kcal • đạm {fmt(f.protein, 1)} g</span>

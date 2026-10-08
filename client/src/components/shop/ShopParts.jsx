@@ -32,7 +32,7 @@ function AddButton({ p, size = 40 }) {
       aria-label={`Thêm ${productTitle(p)} vào giỏ`}
       className={cx(
         'grid shrink-0 place-items-center rounded-full text-white shadow-pill transition duration-200 ease-out active:scale-90',
-        done ? 'bg-teal-main' : 'bg-teal-dark hover:bg-teal-deep',
+        done ? 'bg-brand-main' : 'bg-brand-dark hover:bg-brand-deep',
       )}
       style={{ width: size, height: size }}
     >
@@ -61,10 +61,10 @@ export function ProductCard({ p, conflict, className = '' }) {
         )}
       </Link>
       <div className="flex flex-1 flex-col gap-1 p-4 pt-2">
-        <Link to={`/shop/p/${p.slug}`} className="line-clamp-2 text-sm font-bold leading-5 text-primary hover:text-teal-dark">{p.name}</Link>
+        <Link to={`/shop/p/${p.slug}`} className="line-clamp-2 text-sm font-bold leading-5 text-primary hover:text-brand-dark">{p.name}</Link>
         <span className="font-secondary text-xs text-muted">{p.size}</span>
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-          <b className="font-secondary text-base text-teal-dark">{money(p.price)}</b>
+          <b className="font-secondary text-base text-brand-dark">{money(p.price)}</b>
           {p.stock !== 0 && <AddButton p={p} size={36} />}
         </div>
       </div>
@@ -95,7 +95,7 @@ export function CartBar() {
   return (
     <Link
       to="/cart"
-      className="fixed inset-x-0 z-30 mx-auto flex h-14 w-[calc(100%-32px)] max-w-[448px] items-center gap-4 rounded-full bg-teal-core pl-2 pr-4 text-white shadow-float transition active:scale-[0.98] animate-[cart-in_0.25s_cubic-bezier(0.22,1,0.36,1)]"
+      className="fixed inset-x-0 z-30 mx-auto flex h-14 w-[calc(100%-32px)] max-w-[448px] items-center gap-4 rounded-full bg-brand-core pl-2 pr-4 text-white shadow-float transition active:scale-[0.98] animate-[cart-in_0.25s_cubic-bezier(0.22,1,0.36,1)]"
       style={{ bottom: 'calc(var(--nav-h) + var(--safe-b) + 8px)' }}
     >
       <span className="relative grid h-10 w-10 place-items-center rounded-full bg-white/15">

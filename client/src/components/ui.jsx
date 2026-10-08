@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, X, Loader2, Download, Share, PlusSquare, Smartphone, Link2, Compass, Check, MoreVertical } from 'lucide-react';
 import { usePwa } from '../context/PwaContext.jsx';
 
-// Logo NUTRIVA (SVG chính thức, đã đổi sang bảng màu teal). tone="white" dùng trên nền tối.
+// Logo NUTRIVA (SVG chính thức, màu gốc của logo). tone="white" dùng trên nền tối.
 export function Logo({ size = 28, withText = true, tone = 'color', className = '' }) {
   const suffix = tone === 'white' ? '-white' : '';
   return (
@@ -156,9 +156,9 @@ export function InstallButton({ className = 'btn btn-outline btn-block', label =
 function GuideStep({ n, icon: Icon, children }) {
   return (
     <li className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-card">
-      <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-teal-light text-teal-dark">
+      <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-light text-brand-dark">
         <Icon size={20} aria-hidden="true" />
-        <span className="absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-teal-dark font-secondary text-2xs font-bold text-white">{n}</span>
+        <span className="absolute -left-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-brand-dark font-secondary text-2xs font-bold text-white">{n}</span>
       </span>
       <span className="text-sm text-secondary">{children}</span>
     </li>
@@ -221,12 +221,12 @@ export function InstallGuide() {
           ))}
         </ol>
         {pwa.ios && !pwa.iosSafari && !pwa.installedOnDevice && (
-          <button type="button" onClick={copyLink} className="flex h-12 items-center justify-center gap-2 rounded-full bg-teal-light text-base font-bold text-teal-deep">
+          <button type="button" onClick={copyLink} className="flex h-12 items-center justify-center gap-2 rounded-full bg-brand-light text-base font-bold text-brand-deep">
             {copied ? <Check size={18} aria-hidden="true" /> : <Link2 size={18} aria-hidden="true" />}
             {copied ? 'Đã sao chép đường dẫn' : 'Sao chép đường dẫn'}
           </button>
         )}
-        <button type="button" onClick={pwa.closeGuide} className="h-12 rounded-full bg-teal-dark text-base font-bold text-white">
+        <button type="button" onClick={pwa.closeGuide} className="h-12 rounded-full bg-brand-dark text-base font-bold text-white">
           Đã hiểu
         </button>
       </div>

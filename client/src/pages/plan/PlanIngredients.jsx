@@ -92,14 +92,14 @@ export default function PlanIngredients() {
                 return (
                   <li key={x.food}>
                     <button type="button" onClick={() => toggle(x.food)} aria-pressed={ok} className="flex min-h-16 w-full items-center gap-4 px-4 py-2 text-left">
-                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-teal-light text-teal-dark" aria-hidden="true">
+                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-brand-light text-brand-dark" aria-hidden="true">
                         <Icon size={22} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className={cx('block truncate text-base font-bold', ok ? 'text-muted line-through' : 'text-primary')}>{x.name}</span>
                         <span className="font-secondary text-xs text-muted">{amount(x.grams)} • {GROUP_LABEL[x.group]}</span>
                       </span>
-                      <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full border-2', ok ? 'border-teal-main bg-teal-main text-white' : 'border-divider text-transparent')} aria-hidden="true">
+                      <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full border-2', ok ? 'border-brand-main bg-brand-main text-white' : 'border-divider text-transparent')} aria-hidden="true">
                         <Check size={16} strokeWidth={3} />
                       </span>
                     </button>

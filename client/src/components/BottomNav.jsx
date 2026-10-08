@@ -76,7 +76,7 @@ function Tab({ to, label, icon: Icon, end }) {
           <Icon
             size={24}
             strokeWidth={isActive ? 2 : 1.75}
-            fill={isActive ? colors.teal.soft : "none"}
+            fill={isActive ? colors.brand.soft : "none"}
             className={isActive ? "text-dark" : "text-nav-inactive"}
             aria-hidden="true"
           />
@@ -156,7 +156,7 @@ export default function BottomNav() {
           aria-label="Ghi nhanh bữa ăn, nước, vận động"
           aria-haspopup="dialog"
           onClick={() => setOpen(true)}
-          className="absolute left-1/2 top-[-16px] z-10 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full bg-black text-white shadow-fab transition duration-150 hover:bg-primary active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-dark"
+          className="absolute left-1/2 top-[-16px] z-10 grid h-14 w-14 -translate-x-1/2 place-items-center rounded-full bg-black text-white shadow-fab transition duration-150 hover:bg-primary active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark"
         >
           <Plus size={24} strokeWidth={2.5} aria-hidden="true" />
         </button>

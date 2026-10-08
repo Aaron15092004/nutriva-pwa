@@ -19,7 +19,7 @@ function Accordion({ icon: Icon, title, aside, children }) {
   return (
     <div className="border-b border-border last:border-b-0">
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex min-h-14 w-full items-center gap-4 text-left">
-        <Icon size={20} className="shrink-0 text-teal-dark" aria-hidden="true" />
+        <Icon size={20} className="shrink-0 text-brand-dark" aria-hidden="true" />
         <span className="flex-1 text-base font-bold text-primary">{title}</span>
         {aside}
         <ChevronDown size={20} className={cx('shrink-0 text-subtle transition-transform duration-200', open && 'rotate-180')} aria-hidden="true" />
@@ -41,7 +41,7 @@ function SweetOption({ active, icon: Icon, label, onClick }) {
       onClick={onClick}
       className={cx(
         'flex h-14 items-center justify-center gap-2 rounded-lg border-2 text-sm font-bold transition',
-        active ? 'border-teal-main bg-teal-light text-teal-deep' : 'border-border bg-white text-secondary hover:border-teal-soft',
+        active ? 'border-brand-main bg-brand-light text-brand-deep' : 'border-border bg-white text-secondary hover:border-brand-soft',
       )}
     >
       <Icon size={20} aria-hidden="true" /> {label}
@@ -107,7 +107,7 @@ export default function ProductDetail() {
   return (
     <>
       <main className="relative min-h-dvh overflow-x-clip bg-background pb-[calc(120px+var(--safe-b))]">
-        <div className="relative bg-teal-light">
+        <div className="relative bg-brand-light">
           <ProductImage product={p} ratio={isDiy ? '292/252' : '4/3'} />
           <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
             <CircleButton icon={ArrowLeft} label="Quay lại" onClick={back} className="bg-white/95 text-primary shadow-pill" size={48} iconSize={22} />
@@ -128,18 +128,18 @@ export default function ProductDetail() {
         <div className="relative -mt-6 flex flex-col gap-6 rounded-t-xl bg-background px-4 pt-6">
           <section className="flex flex-col gap-2">
             <span className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-teal-light px-4 py-1 font-secondary text-xs font-bold text-teal-deep">{isDiy ? 'Set tự làm tại nhà' : 'Sữa hạt pha sẵn'}</span>
+              <span className="rounded-full bg-brand-light px-4 py-1 font-secondary text-xs font-bold text-brand-deep">{isDiy ? 'Set tự làm tại nhà' : 'Sữa hạt pha sẵn'}</span>
               <span className="rounded-full bg-surface px-4 py-1 font-secondary text-xs font-semibold text-secondary">{FLAVORS.find((f) => f.id === p.flavor)?.label}</span>
               {p.stock != null && p.stock > 0 && p.stock <= 10 && <span className="rounded-full bg-warm-light px-4 py-1 font-secondary text-xs font-bold text-warm-dark">Chỉ còn {p.stock}</span>}
             </span>
             <h1 className="text-2xl font-extrabold text-primary">{p.name}</h1>
             <p className="text-sm text-muted">{p.subtitle?.includes(p.size) ? p.subtitle : [p.subtitle, p.size].filter(Boolean).join(' • ')}</p>
-            <p className="font-secondary text-2xl font-bold text-teal-dark">{money(p.price)}</p>
+            <p className="font-secondary text-2xl font-bold text-brand-dark">{money(p.price)}</p>
             {p.description && (
               <div>
                 <p className={cx('text-sm text-secondary', !more && 'line-clamp-3')}>{p.description}</p>
                 {p.description.length > 160 && (
-                  <button type="button" onClick={() => setMore((v) => !v)} className="min-h-8 text-sm font-bold text-teal-dark hover:text-teal-deep">
+                  <button type="button" onClick={() => setMore((v) => !v)} className="min-h-8 text-sm font-bold text-brand-dark hover:text-brand-deep">
                     {more ? 'Thu gọn' : 'Xem thêm'}
                   </button>
                 )}
@@ -174,7 +174,7 @@ export default function ProductDetail() {
               <h2 className="text-base font-bold text-primary">Trong set có</h2>
               {[...p.ingredients.map((i) => `${ingredientName(i)} đã chọn lọc`), ...p.extraIngredients, 'Hướng dẫn chi tiết kèm theo'].map((t) => (
                 <span key={t} className="flex items-center gap-2 text-sm text-secondary">
-                  <CheckCircle2 size={18} className="shrink-0 text-teal-dark" aria-hidden="true" /> {t}
+                  <CheckCircle2 size={18} className="shrink-0 text-brand-dark" aria-hidden="true" /> {t}
                 </span>
               ))}
             </section>
@@ -190,7 +190,7 @@ export default function ProductDetail() {
                   ))}
                   {p.extraIngredients.map((x) => (
                     <span key={x} className="inline-flex h-9 items-center gap-1 rounded-full bg-white px-4 text-sm text-secondary shadow-pill">
-                      <Leaf size={16} className="text-teal-main" aria-hidden="true" /> {x}
+                      <Leaf size={16} className="text-brand-main" aria-hidden="true" /> {x}
                     </span>
                   ))}
                   <span className="inline-flex h-9 items-center gap-1 rounded-full bg-white px-4 text-sm text-secondary shadow-pill">
@@ -211,7 +211,7 @@ export default function ProductDetail() {
           <section className="rounded-xl bg-white px-4 shadow-card">
             {isDiy && (
               <Link to={`/shop/p/${p.slug}/guide`} className="flex min-h-14 items-center gap-4 border-b border-border">
-                <BookOpen size={20} className="text-teal-dark" aria-hidden="true" />
+                <BookOpen size={20} className="text-brand-dark" aria-hidden="true" />
                 <span className="flex-1 text-base font-bold text-primary">Hướng dẫn chế biến</span>
                 <ChevronRight size={20} className="text-subtle" aria-hidden="true" />
               </Link>
@@ -223,7 +223,7 @@ export default function ProductDetail() {
           </section>
 
           {!isDiy && (
-            <Link to={`/why/${p.slug}`} className="inline-flex min-h-10 items-center gap-2 self-start text-sm font-bold text-teal-dark hover:text-teal-deep">
+            <Link to={`/why/${p.slug}`} className="inline-flex min-h-10 items-center gap-2 self-start text-sm font-bold text-brand-dark hover:text-brand-deep">
               <HelpCircle size={18} aria-hidden="true" /> Vì sao sản phẩm này hợp với bạn?
             </Link>
           )}
@@ -246,17 +246,17 @@ export default function ProductDetail() {
       <div className="fixed inset-x-0 bottom-0 z-20 mx-auto flex max-w-app items-center gap-4 border-t border-border bg-white/95 px-4 pb-[calc(12px+var(--safe-b))] pt-3 backdrop-blur">
         {isDiy ? (
           <>
-            <button type="button" disabled={soldOut} onClick={addToCart} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full border-2 border-teal-dark text-base font-bold text-teal-dark transition active:scale-[0.98] disabled:opacity-50">
+            <button type="button" disabled={soldOut} onClick={addToCart} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand-dark text-base font-bold text-brand-dark transition active:scale-[0.98] disabled:opacity-50">
               <ShoppingCart size={18} aria-hidden="true" /> {soldOut ? 'Hết hàng' : 'Thêm vào giỏ'}
             </button>
-            <Link to={`/shop/p/${p.slug}/guide`} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-teal-dark text-base font-bold text-white transition hover:bg-teal-deep active:scale-[0.98]">
+            <Link to={`/shop/p/${p.slug}/guide`} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-brand-dark text-base font-bold text-white transition hover:bg-brand-deep active:scale-[0.98]">
               <PlayCircle size={18} aria-hidden="true" /> Xem cách làm
             </Link>
           </>
         ) : (
           <>
             <QtyStepper value={qty} onChange={setQty} max={maxQty} />
-            <button type="button" disabled={soldOut} onClick={addToCart} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-teal-dark px-4 text-base font-bold text-white transition hover:bg-teal-deep active:scale-[0.98] disabled:opacity-50">
+            <button type="button" disabled={soldOut} onClick={addToCart} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-brand-dark px-4 text-base font-bold text-white transition hover:bg-brand-deep active:scale-[0.98] disabled:opacity-50">
               {soldOut ? 'Hết hàng' : <>Thêm • {money(p.price * qty)}</>}
             </button>
           </>

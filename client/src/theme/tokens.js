@@ -13,15 +13,17 @@ export const colors = {
   dark: '#101114', // Dark text
   black: '#000000',
 
-  teal: {
-    light: '#E8F8F4',
-    soft: '#C8EFE6',
-    pastel: '#96DFD0',
-    accent: '#5FCAB7',
-    main: '#168E79',
-    dark: '#087461',
-    deep: '#075C4E',
-    core: '#06382F',
+  // Màu thương hiệu — lấy từ logo NUTRIVA (xanh lá ô liu). Chữ trên nền trắng dùng dark trở lên (≥ 4.5:1);
+  // main chỉ dùng cho icon, viền, thanh tiến độ (3:1).
+  brand: {
+    light: '#F2F7E7',
+    soft: '#DCEBC2',
+    pastel: '#C2DB8E',
+    accent: '#A7C65E', // lá nhạt trong logo
+    main: '#7CA034', // logo
+    dark: '#567324', // logo — hành động chính
+    deep: '#435A1C',
+    core: '#2F4B23', // màu chữ NUTRIVA
   },
   warm: {
     light: '#FFF3EC',
@@ -41,13 +43,13 @@ export const colors = {
   // Theo ngữ cảnh
   water: { card: '#D6EAF8', icon: '#2679A8' },
   torch: { card: '#FFE5D0' },
-  breakfast: { card: '#B7E5D8' },
+  breakfast: { card: '#D5E7B5' },
   lunch: { card: '#F9C4A0' },
   dinner: { card: '#AACFE8', track: '#C5DEF0', hint: '#1A5C80' },
   snacks: { card: '#F5D97A', track: '#FFE7A0', hint: '#7A4800' },
   weekday: '#E3E2F0',
   nav: { inactive: '#5A5A5A', text: '#565B63' },
-  recipe: '#2F8F5B',
+  recipe: '#4A7A26',
 };
 
 export const fonts = {

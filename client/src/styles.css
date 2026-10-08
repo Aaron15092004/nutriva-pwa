@@ -5,14 +5,14 @@
    Tên biến cũ (--green-*, --primary…) được giữ để mọi trang hiện có tự đổi theo bảng màu mới. */
 :root {
   /* Teal (thương hiệu) */
-  --green-900: #06382f;   /* Teal Core */
-  --green-800: #075c4e;   /* Teal Deep */
-  --primary: #087461;     /* Teal Dark — hành động chính */
-  --primary-600: #168e79; /* Teal Main */
-  --green-400: #5fcab7;   /* Teal Accent */
-  --green-200: #96dfd0;   /* Teal Pastel */
-  --green-100: #c8efe6;   /* Teal Soft */
-  --green-50: #e8f8f4;    /* Teal Light */
+  --green-900: #2f4b23;   /* Brand Core */
+  --green-800: #435a1c;   /* Brand Deep */
+  --primary: #567324;     /* Brand Dark — hành động chính */
+  --primary-600: #7ca034; /* Brand Main */
+  --green-400: #a7c65e;   /* Brand Accent */
+  --green-200: #c2db8e;   /* Brand Pastel */
+  --green-100: #dcebc2;   /* Brand Soft */
+  --green-50: #f2f7e7;    /* Brand Light */
   /* Neutrals */
   --bg: #f8faf8;          /* Background */
   --surface: #eff3f0;     /* Surface */
@@ -25,7 +25,7 @@
   --divider: #c6d2cb;
   /* Dinh dưỡng & ngữ cảnh */
   --carb: #2679a8;        /* Water icon (xanh dương) */
-  --protein: #168e79;     /* Teal Main */
+  --protein: #7ca034;     /* Brand Main */
   --fat: #f47a3d;         /* Warm Main */
   --water: #2679a8;
   --water-card: #d6eaf8;
@@ -163,7 +163,7 @@ p { margin: 0; }
 }
 .btn:active:not(:disabled) { transform: scale(0.98); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.btn-primary { background: var(--primary); color: #fff; box-shadow: 0 6px 16px rgba(8, 116, 97, 0.28); }
+.btn-primary { background: var(--primary); color: #fff; box-shadow: 0 6px 16px rgba(86, 115, 36, 0.28); }
 .btn-primary:hover:not(:disabled) { background: var(--green-800); }
 .btn-outline { background: #fff; color: var(--green-800); border-color: var(--green-800); }
 .btn-outline:hover:not(:disabled) { background: var(--green-50); }
@@ -237,7 +237,7 @@ p { margin: 0; }
   min-height: 40px; border: 0; border-radius: 999px; background: transparent;
   font-weight: 600; font-size: 14px; color: var(--green-800); transition: all 0.2s var(--ease);
 }
-.segmented button[aria-selected='true'] { background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(8, 116, 97, 0.25); }
+.segmented button[aria-selected='true'] { background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(86, 115, 36, 0.25); }
 
 .tabs-line { display: grid; grid-auto-flow: column; border-bottom: 1px solid var(--border); }
 .tabs-line button { min-height: 46px; border: 0; background: none; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -378,7 +378,7 @@ img { -webkit-user-drag: none; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 @media (min-width: 520px) {
-  body { background: radial-gradient(circle at 20% 10%, #f8faf8 0, #e8f8f4 60%); }
+  body { background: radial-gradient(circle at 20% 10%, #f8faf8 0, #f2f7e7 60%); }
   .app { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 }
 

@@ -20,7 +20,7 @@ export default function Welcome() {
         <header className="flex items-center justify-between gap-4">
           <Logo size={40} />
           {pwa.showInstall && (
-            <Pill as="button" type="button" onClick={pwa.install} className="h-10 px-4 text-sm font-bold text-teal-dark transition hover:shadow-card">
+            <Pill as="button" type="button" onClick={pwa.install} className="h-10 px-4 text-sm font-bold text-brand-dark transition hover:shadow-card">
               <Download size={16} aria-hidden="true" /> {pwa.installedOnDevice ? 'Mở app' : 'Cài đặt'}
             </Pill>
           )}
@@ -38,18 +38,18 @@ export default function Welcome() {
         </div>
 
         <section className="flex flex-col items-center gap-2 text-center">
-          <h1 className="font-display text-4xl font-bold leading-10 text-teal-core [font-variation-settings:'SOFT'_100]">
+          <h1 className="font-display text-4xl font-bold leading-10 text-brand-core [font-variation-settings:'SOFT'_100]">
             Dinh dưỡng
             <br />
             theo cách của bạn
           </h1>
-          <p className="font-script text-2xl text-teal-main">Ăn lành mỗi ngày, sống rạng rỡ hơn</p>
+          <p className="font-script text-2xl text-brand-dark">Ăn lành mỗi ngày, sống rạng rỡ hơn</p>
         </section>
 
         <ul className="grid grid-cols-3 gap-2" aria-label="NUTRIVA có gì">
           {FEATURES.map((f) => (
             <li key={f.label} className="flex flex-col items-center gap-2 rounded-lg bg-white/80 p-2 py-4 text-center shadow-pill">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-teal-light text-teal-dark" aria-hidden="true">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-light text-brand-dark" aria-hidden="true">
                 <f.icon size={20} />
               </span>
               <span className="text-xs font-bold text-primary">{f.label}</span>
@@ -58,10 +58,10 @@ export default function Welcome() {
         </ul>
 
         <div className="mt-auto flex flex-col gap-2">
-          <Link to="/onboarding" className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-teal-dark text-base font-bold text-white transition hover:bg-teal-deep active:scale-[0.98]">
+          <Link to="/onboarding" className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-brand-dark text-base font-bold text-white transition hover:bg-brand-deep active:scale-[0.98]">
             Bắt đầu <ChevronRight size={20} aria-hidden="true" />
           </Link>
-          <Link to="/login" className="inline-flex h-14 items-center justify-center rounded-full bg-white text-base font-bold text-teal-dark shadow-pill transition hover:bg-teal-light active:scale-[0.98]">
+          <Link to="/login" className="inline-flex h-14 items-center justify-center rounded-full bg-white text-base font-bold text-brand-dark shadow-pill transition hover:bg-brand-light active:scale-[0.98]">
             Tôi đã có tài khoản
           </Link>
         </div>

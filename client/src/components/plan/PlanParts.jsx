@@ -9,7 +9,7 @@ import { ProgressBar, fmt, cx } from '../ds/index.jsx';
 
 export const STYLE_LABEL = Object.fromEntries(PLAN_STYLES.map((s) => [s.id, s.label]));
 const MACROS = [
-  { k: 'protein', label: 'Đạm', icon: Zap, cls: 'text-teal-main', color: colors.teal.main, kcal: 4 },
+  { k: 'protein', label: 'Đạm', icon: Zap, cls: 'text-brand-main', color: colors.brand.main, kcal: 4 },
   { k: 'carb', label: 'Bột đường', icon: Wheat, cls: 'text-water-icon', color: colors.water.icon, kcal: 4 },
   { k: 'fat', label: 'Béo', icon: Droplet, cls: 'text-warm-main', color: colors.warm.main, kcal: 9 },
 ];
@@ -67,7 +67,7 @@ export function DaySummary({ kcal, protein, carb, fat, eaten, children }) {
       </div>
       {eaten != null && (
         <div className="flex items-center gap-4">
-          <ProgressBar value={eaten} max={kcal} track="bg-surface" fill="bg-teal-main" label="Đã ăn so với thực đơn" />
+          <ProgressBar value={eaten} max={kcal} track="bg-surface" fill="bg-brand-main" label="Đã ăn so với thực đơn" />
           <span className="w-12 shrink-0 text-right font-secondary text-sm font-bold text-primary">{Math.min(100, Math.round((eaten / (kcal || 1)) * 100))}%</span>
         </div>
       )}
@@ -146,10 +146,10 @@ export function PlanCard({ plan, badge }) {
     <Link to={`/plan/m/${plan.mine ? plan.id : plan.slug}`} className="group flex flex-col overflow-hidden rounded-xl bg-white shadow-card transition hover:shadow-float active:scale-[0.99]">
       <div className="relative aspect-[16/9] bg-surface">
         {plan.image && <img src={plan.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
-        {badge && <span className="absolute left-4 top-4 rounded-full bg-white/95 px-2 py-1 font-secondary text-xs font-bold text-teal-dark shadow-pill">{badge}</span>}
+        {badge && <span className="absolute left-4 top-4 rounded-full bg-white/95 px-2 py-1 font-secondary text-xs font-bold text-brand-dark shadow-pill">{badge}</span>}
       </div>
       <div className="flex flex-col gap-2 p-4">
-        <h3 className="line-clamp-2 text-lg font-bold leading-6 text-primary group-hover:text-teal-dark">{plan.title}</h3>
+        <h3 className="line-clamp-2 text-lg font-bold leading-6 text-primary group-hover:text-brand-dark">{plan.title}</h3>
         <p className="font-secondary text-sm text-muted">{kcalRange(plan)}</p>
         <PlanPills plan={plan} />
       </div>

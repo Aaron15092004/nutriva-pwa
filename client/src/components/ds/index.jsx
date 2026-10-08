@@ -7,7 +7,7 @@ const cx = (...c) => c.filter(Boolean).join(' ');
 export { cx };
 
 // Thanh tiến độ: track/fill nhận class Tailwind để đổi theo ngữ cảnh (bữa ăn, macro…)
-export function ProgressBar({ value, max, track = 'bg-white/70', fill = 'bg-teal-main', className = '', label }) {
+export function ProgressBar({ value, max, track = 'bg-white/70', fill = 'bg-brand-main', className = '', label }) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
     <div
@@ -24,7 +24,7 @@ export function ProgressBar({ value, max, track = 'bg-white/70', fill = 'bg-teal
 }
 
 // Vòng tiến độ SVG
-export function ProgressRing({ value, max, size = 128, stroke = 12, color = colors.teal.main, track = 'rgba(255,255,255,0.7)', children, className = '' }) {
+export function ProgressRing({ value, max, size = 128, stroke = 12, color = colors.brand.main, track = 'rgba(255,255,255,0.7)', children, className = '' }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pct = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
@@ -58,7 +58,7 @@ export function CircleButton({ icon: Icon, label, onClick, className = 'bg-white
       aria-label={label}
       onClick={onClick}
       className={cx(
-        'grid shrink-0 place-items-center rounded-full transition duration-150 ease-out hover:brightness-95 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-dark',
+        'grid shrink-0 place-items-center rounded-full transition duration-150 ease-out hover:brightness-95 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark',
         className,
       )}
       style={{ width: size, height: size }}
@@ -70,7 +70,7 @@ export function CircleButton({ icon: Icon, label, onClick, className = 'bg-white
 }
 
 // Ô icon tròn có nền
-export function IconCircle({ icon: Icon, className = 'bg-teal-main text-white', size = 48, iconSize = 24 }) {
+export function IconCircle({ icon: Icon, className = 'bg-brand-main text-white', size = 48, iconSize = 24 }) {
   return (
     <span className={cx('grid shrink-0 place-items-center rounded-full', className)} style={{ width: size, height: size }} aria-hidden="true">
       <Icon size={iconSize} strokeWidth={2} />
@@ -84,7 +84,7 @@ export function SectionHeader({ title, action, to, id }) {
     <div className="flex items-center justify-between gap-4">
       <h2 id={id} className="text-lg font-extrabold text-primary">{title}</h2>
       {action && to && (
-        <Link to={to} className="inline-flex min-h-10 items-center gap-1 font-secondary text-xs font-medium text-teal-dark hover:text-teal-deep">
+        <Link to={to} className="inline-flex min-h-10 items-center gap-1 font-secondary text-xs font-medium text-brand-dark hover:text-brand-deep">
           {action} <ChevronRight size={16} aria-hidden="true" />
         </Link>
       )}
@@ -109,7 +109,7 @@ export function Avatar({ src, name = '', size = 64, className = '' }) {
     <img src={src} alt={`Ảnh đại diện của ${name}`} className={cx('shrink-0 rounded-full object-cover', className)} style={{ width: size, height: size }} />
   ) : (
     <span
-      className={cx('grid shrink-0 place-items-center rounded-full bg-white font-display font-bold text-teal-dark', className)}
+      className={cx('grid shrink-0 place-items-center rounded-full bg-white font-display font-bold text-brand-dark', className)}
       style={{ width: size, height: size, fontSize: size * 0.4 }}
       aria-hidden="true"
     >

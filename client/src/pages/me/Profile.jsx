@@ -201,7 +201,7 @@ export default function Profile() {
           id="weight"
           title="Cân nặng"
           action={
-            <button type="button" onClick={() => setWeightOpen(true)} className="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-teal-dark">
+            <button type="button" onClick={() => setWeightOpen(true)} className="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-brand-dark">
               <Plus size={18} aria-hidden="true" /> Ghi cân nặng
             </button>
           }
@@ -216,7 +216,7 @@ export default function Profile() {
 
         <MetricCard id="intake" title="Calo nạp 7 ngày">
           <Big value={fmt(avg('kcal'))} unit="kcal / ngày (TB)" />
-          {week.data ? <BarChart data={series('kcal')} goal={h.targetKcal} unit="kcal" caption="Calo nạp 7 ngày" activeKey={t} fill="bg-teal-soft" fillActive="bg-teal-main" /> : <Skeleton h={168} />}
+          {week.data ? <BarChart data={series('kcal')} goal={h.targetKcal} unit="kcal" caption="Calo nạp 7 ngày" activeKey={t} fill="bg-brand-soft" fillActive="bg-brand-main" /> : <Skeleton h={168} />}
         </MetricCard>
 
         <MetricCard id="water" title="Nước uống 7 ngày">
@@ -227,7 +227,7 @@ export default function Profile() {
         <MetricCard
           id="activity"
           title="Vận động 7 ngày"
-          action={<Link to="/activities" className="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-teal-dark"><Plus size={18} aria-hidden="true" /> Ghi vận động</Link>}
+          action={<Link to="/activities" className="inline-flex min-h-10 items-center gap-1 text-sm font-bold text-brand-dark"><Plus size={18} aria-hidden="true" /> Ghi vận động</Link>}
         >
           <Big value={fmt(avg('minutes'))} unit="phút / ngày (TB)" />
           {week.data ? <BarChart data={series('minutes')} goal={h.exerciseMin} unit="phút" caption="Vận động 7 ngày" activeKey={t} fill="bg-torch-card" fillActive="bg-warm-main" /> : <Skeleton h={168} />}

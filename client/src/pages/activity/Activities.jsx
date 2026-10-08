@@ -176,7 +176,7 @@ export default function Activities() {
         }
       />
       <main className="flex flex-col gap-6 px-4 pb-12 pr-10 pt-2">
-        <div className="flex h-12 items-center gap-2 rounded-full border border-border bg-white px-4 focus-within:border-teal-main focus-within:ring-2 focus-within:ring-teal-accent/40">
+        <div className="flex h-12 items-center gap-2 rounded-full border border-border bg-white px-4 focus-within:border-brand-main focus-within:ring-2 focus-within:ring-brand-accent/40">
           <Search size={20} className="text-subtle" aria-hidden="true" />
           <input
             type="search"
@@ -234,7 +234,7 @@ export default function Activities() {
             aria-label={`Chữ ${L}`}
             className={cx(
               'grid h-5 w-8 place-items-center font-secondary text-xs font-semibold',
-              activeLetter === L ? 'text-teal-dark' : letters.has(L) ? 'text-secondary' : 'text-divider',
+              activeLetter === L ? 'text-brand-dark' : letters.has(L) ? 'text-secondary' : 'text-divider',
             )}
           >
             {L}

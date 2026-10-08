@@ -44,7 +44,7 @@ function EnergyPanel({ goalLabel, h, eaten, burned }) {
   const over = left < 0;
   const macros = [
     { k: 'carb', label: 'Bột đường', fill: 'bg-water-icon' },
-    { k: 'protein', label: 'Đạm', fill: 'bg-teal-main' },
+    { k: 'protein', label: 'Đạm', fill: 'bg-brand-main' },
     { k: 'fat', label: 'Béo', fill: 'bg-warm-main' },
   ];
   return (
@@ -52,10 +52,10 @@ function EnergyPanel({ goalLabel, h, eaten, burned }) {
       <PanelTitle edit>{goalLabel}: {fmt(h.targetKcal)} kcal</PanelTitle>
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-4">
-          <Stat icon={Utensils} label="Đã ăn" value={fmt(eaten.kcal)} unit="kcal" valueClass="text-teal-main" iconClass="text-teal-main" />
+          <Stat icon={Utensils} label="Đã ăn" value={fmt(eaten.kcal)} unit="kcal" valueClass="text-brand-dark" iconClass="text-brand-main" />
           <Stat icon={Flame} label="Đã đốt" value={fmt(burned)} unit="kcal" valueClass="text-primary" iconClass="text-warm-main" />
         </div>
-        <ProgressRing value={h.targetKcal - Math.max(0, left)} max={h.targetKcal} size={128} stroke={12} color={over ? colors.warm.main : colors.teal.main}>
+        <ProgressRing value={h.targetKcal - Math.max(0, left)} max={h.targetKcal} size={128} stroke={12} color={over ? colors.warm.main : colors.brand.main}>
           <div>
             <div className={cx('font-secondary text-2xl font-bold', over ? 'text-warm-dark' : 'text-primary')}>{fmt(Math.abs(left))}</div>
             <div className="text-xs text-muted">{over ? 'kcal vượt' : 'kcal còn lại'}</div>
@@ -145,7 +145,7 @@ export default function SummaryCarousel({ goalLabel, health, profile, eaten, bur
       <div
         ref={ref}
         onScroll={onScroll}
-        className="flex snap-x snap-mandatory overflow-x-auto rounded-xl bg-gradient-to-t from-teal-light via-teal-soft to-teal-pastel shadow-card [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory overflow-x-auto rounded-xl bg-gradient-to-t from-brand-light via-brand-soft to-brand-pastel shadow-card [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {pages.map((pg, i) => (
           <div key={pg.id} className="w-full shrink-0 snap-center p-4" role="group" aria-roledescription="slide" aria-label={`${i + 1} / ${pages.length}: ${pg.label}`}>

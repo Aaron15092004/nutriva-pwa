@@ -43,10 +43,10 @@ export default function Cart() {
       <>
         <TopBar title="Giỏ hàng" />
         <main className="flex flex-col items-center gap-4 px-6 pb-12 pt-16 text-center">
-          <IconCircle icon={ShoppingBag} className="bg-teal-light text-teal-dark" size={80} iconSize={36} />
+          <IconCircle icon={ShoppingBag} className="bg-brand-light text-brand-dark" size={80} iconSize={36} />
           <h2 className="text-xl font-extrabold text-primary">Giỏ hàng đang trống</h2>
           <p className="text-sm text-muted">Khám phá sữa hạt tươi và set tự làm của NUTRIVA.</p>
-          <Link to="/shop" className="mt-2 inline-flex h-12 items-center rounded-full bg-teal-dark px-6 text-base font-bold text-white hover:bg-teal-deep">
+          <Link to="/shop" className="mt-2 inline-flex h-12 items-center rounded-full bg-brand-dark px-6 text-base font-bold text-white hover:bg-brand-deep">
             Đến cửa hàng
           </Link>
         </main>
@@ -98,7 +98,7 @@ export default function Cart() {
                   {i.type === 'milk' ? ` • ${i.sweetness === 'low' ? 'Ít ngọt' : 'Không thêm đường'}` : ''}
                 </span>
                 <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-                  <b className="font-secondary text-base text-teal-dark">{money(i.price * i.qty)}</b>
+                  <b className="font-secondary text-base text-brand-dark">{money(i.price * i.qty)}</b>
                   <QtyStepper size="sm" value={i.qty} min={0} onChange={(v) => cart.setQty(i, Math.min(50, v))} label={`Số lượng ${i.name}`} />
                 </div>
               </div>
@@ -108,7 +108,7 @@ export default function Cart() {
 
         <section className="flex flex-col gap-2 rounded-xl bg-white p-4 shadow-card">
           <label htmlFor="coupon" className="flex items-center gap-2 text-base font-bold text-primary">
-            <TicketPercent size={20} className="text-teal-dark" aria-hidden="true" /> Mã giảm giá
+            <TicketPercent size={20} className="text-brand-dark" aria-hidden="true" /> Mã giảm giá
           </label>
           <div className="flex gap-2">
             <input
@@ -116,9 +116,9 @@ export default function Cart() {
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="Nhập mã của bạn"
-              className="h-12 min-w-0 flex-1 rounded-full border border-border bg-background px-4 font-secondary text-base font-semibold uppercase tracking-wider text-primary outline-none placeholder:normal-case placeholder:tracking-normal placeholder:font-normal focus:border-teal-main"
+              className="h-12 min-w-0 flex-1 rounded-full border border-border bg-background px-4 font-secondary text-base font-semibold uppercase tracking-wider text-primary outline-none placeholder:normal-case placeholder:tracking-normal placeholder:font-normal focus:border-brand-main"
             />
-            <Button className="h-12 rounded-full bg-teal-light px-6 text-base font-bold text-teal-deep" style={{ minHeight: 48 }} loading={checking} disabled={!code.trim()} onClick={apply}>
+            <Button className="h-12 rounded-full bg-brand-light px-6 text-base font-bold text-brand-deep" style={{ minHeight: 48 }} loading={checking} disabled={!code.trim()} onClick={apply}>
               Áp dụng
             </Button>
           </div>
@@ -153,7 +153,7 @@ export default function Cart() {
           <p className="font-secondary text-xs text-muted">Tổng tạm tính</p>
           <p className="font-secondary text-xl font-bold text-primary">{money(total)}</p>
         </div>
-        <button type="button" onClick={() => navigate('/checkout')} className="flex h-12 flex-1 items-center justify-center gap-1 rounded-full bg-teal-dark text-base font-bold text-white transition hover:bg-teal-deep active:scale-[0.98]">
+        <button type="button" onClick={() => navigate('/checkout')} className="flex h-12 flex-1 items-center justify-center gap-1 rounded-full bg-brand-dark text-base font-bold text-white transition hover:bg-brand-deep active:scale-[0.98]">
           Đặt hàng <ChevronRight size={20} aria-hidden="true" />
         </button>
       </div>

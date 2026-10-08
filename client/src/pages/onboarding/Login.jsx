@@ -38,7 +38,7 @@ export default function Login() {
 
         <header className="flex flex-col gap-2">
           <Logo size={36} />
-          <h1 className="mt-4 font-display text-3xl font-bold text-teal-core [font-variation-settings:'SOFT'_100]">Chào mừng trở lại</h1>
+          <h1 className="mt-4 font-display text-3xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">Chào mừng trở lại</h1>
           <p className="text-base text-secondary">Đăng nhập để tiếp tục kế hoạch dinh dưỡng của bạn.</p>
         </header>
 
@@ -67,7 +67,7 @@ export default function Login() {
 
         <p className="mt-auto text-center text-sm text-muted">
           Chưa có tài khoản?{' '}
-          <Link to="/onboarding" className="font-bold text-teal-dark hover:text-teal-deep">
+          <Link to="/onboarding" className="font-bold text-brand-dark hover:text-brand-deep">
             Bắt đầu ngay
           </Link>
         </p>

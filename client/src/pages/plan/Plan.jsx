@@ -54,7 +54,7 @@ function DateNav({ date, onChange }) {
 
 function LogButton({ it, logged, busy, onLog }) {
   return logged ? (
-    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-teal-light text-teal-dark" role="img" aria-label="Đã ghi vào nhật ký">
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-light text-brand-dark" role="img" aria-label="Đã ghi vào nhật ký">
       <Check size={20} strokeWidth={2.5} aria-hidden="true" />
     </span>
   ) : (
@@ -95,13 +95,13 @@ function MyMenu({ date, setDate, onExplore }) {
         <DateNav date={date} onChange={setDate} />
         <section className="flex flex-col items-start gap-4 rounded-xl bg-breakfast-card p-4">
           <div className="flex items-center gap-4">
-            <IconCircle icon={Compass} className="bg-teal-main text-white" />
+            <IconCircle icon={Compass} className="bg-brand-main text-white" />
             <div>
               <h2 className="text-base font-bold text-primary">Bạn chưa áp dụng kế hoạch nào</h2>
               <p className="text-sm text-secondary">Chọn một thực đơn 7 ngày phù hợp mức calo của bạn, hoặc dùng gợi ý tự động bên dưới.</p>
             </div>
           </div>
-          <button type="button" onClick={onExplore} className="h-12 rounded-full bg-teal-dark px-6 text-base font-bold text-white transition hover:bg-teal-deep active:scale-[0.98]">
+          <button type="button" onClick={onExplore} className="h-12 rounded-full bg-brand-dark px-6 text-base font-bold text-white transition hover:bg-brand-deep active:scale-[0.98]">
             Khám phá thực đơn
           </button>
         </section>
@@ -117,7 +117,7 @@ function MyMenu({ date, setDate, onExplore }) {
               return (
                 <MealBlock key={m.meal} meal={m.meal} label={m.label} kcal={it.kcal}>
                   <PlanItemRow item={it} action={<LogButton it={it} logged={isLogged(log, it)} busy={busy === key} onLog={() => onLog(it, key)} />}>
-                    <button type="button" onClick={() => navigate(`/plan/adjust/${date}/${m.meal}`)} className="mt-2 inline-flex min-h-8 items-center gap-1 text-xs font-bold text-teal-dark hover:text-teal-deep">
+                    <button type="button" onClick={() => navigate(`/plan/adjust/${date}/${m.meal}`)} className="mt-2 inline-flex min-h-8 items-center gap-1 text-xs font-bold text-brand-dark hover:text-brand-deep">
                       <RefreshCw size={14} aria-hidden="true" /> Đổi món
                     </button>
                   </PlanItemRow>
@@ -194,12 +194,12 @@ function Custom({ onExplore }) {
   if (!data.mine.length)
     return (
       <section className="flex flex-col items-center gap-4 rounded-xl bg-white px-6 py-8 text-center shadow-card">
-        <IconCircle icon={NotebookPen} className="bg-teal-light text-teal-dark" size={64} iconSize={28} />
+        <IconCircle icon={NotebookPen} className="bg-brand-light text-brand-dark" size={64} iconSize={28} />
         <div>
           <h2 className="text-base font-bold text-primary">Chưa có thực đơn tự tạo</h2>
           <p className="text-sm text-muted">Mở một kế hoạch bất kỳ và chọn <b>Tùy chỉnh &amp; lưu</b> để tạo bản của riêng bạn — đổi món, thêm bớt, chỉnh định lượng.</p>
         </div>
-        <button type="button" onClick={onExplore} className="h-12 rounded-full bg-teal-dark px-6 text-base font-bold text-white hover:bg-teal-deep">
+        <button type="button" onClick={onExplore} className="h-12 rounded-full bg-brand-dark px-6 text-base font-bold text-white hover:bg-brand-deep">
           Khám phá thực đơn
         </button>
       </section>
@@ -225,8 +225,8 @@ export default function Plan() {
       <HeroBackdrop />
       <div className="relative flex flex-col gap-6 px-4 pt-6">
         <header className="flex items-center justify-between gap-4">
-          <h1 className="font-display text-2xl font-bold text-teal-core [font-variation-settings:'SOFT'_100]">{title}</h1>
-          <Link to="/me/edit?step=basic" className="font-secondary text-xs font-semibold text-teal-dark hover:text-teal-deep">Mục tiêu</Link>
+          <h1 className="font-display text-2xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">{title}</h1>
+          <Link to="/me/edit?step=basic" className="font-secondary text-xs font-semibold text-brand-dark hover:text-brand-deep">Mục tiêu</Link>
         </header>
         <ChipTabs items={TABS} value={tab} onChange={(t) => set({ tab: t })} label="Thực đơn" />
         <div className={cx('flex flex-col gap-6')}>

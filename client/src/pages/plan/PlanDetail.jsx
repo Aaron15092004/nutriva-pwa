@@ -69,7 +69,7 @@ function AmountEditor({ it, onChange, onRemove }) {
             onChange={(e) => onChange({ grams: e.target.value === '' ? '' : Number(e.target.value) })}
             onBlur={() => set(Number(value) || 1)}
             aria-label={`Định lượng ${it.label ?? ''} (gram)`}
-            className="h-8 w-16 rounded-sm border border-border bg-white px-2 text-right font-secondary text-sm font-bold text-primary outline-none focus:border-teal-main"
+            className="h-8 w-16 rounded-sm border border-border bg-white px-2 text-right font-secondary text-sm font-bold text-primary outline-none focus:border-brand-main"
           />
           <span className="text-xs text-muted">g</span>
         </label>
@@ -247,12 +247,12 @@ export default function PlanDetail() {
             <h1 className="text-2xl font-extrabold text-primary">{plan.title}</h1>
             <p className="font-secondary text-sm text-muted">
               {kcalRange(plan)}
-              {plan.active && plan.startDate && <b className="text-teal-dark"> • Đang áp dụng từ {shortDate(plan.startDate)}</b>}
+              {plan.active && plan.startDate && <b className="text-brand-dark"> • Đang áp dụng từ {shortDate(plan.startDate)}</b>}
             </p>
             {plan.description && (
               <div>
                 <p className={cx('text-sm text-secondary', !moreText && 'line-clamp-3')}>{plan.description}</p>
-                <button type="button" onClick={() => setMoreText((v) => !v)} className="min-h-8 text-sm font-bold text-teal-dark hover:text-teal-deep">
+                <button type="button" onClick={() => setMoreText((v) => !v)} className="min-h-8 text-sm font-bold text-brand-dark hover:text-brand-deep">
                   {moreText ? 'Thu gọn' : 'Xem thêm'}
                 </button>
               </div>
@@ -278,7 +278,7 @@ export default function PlanDetail() {
                   onClick={() => setDayIdx(i)}
                   className={cx(
                     'mx-auto grid aspect-square w-full max-w-12 place-items-center rounded-full font-secondary text-base font-bold transition',
-                    i === dayIdx ? 'bg-teal-main text-white ring-2 ring-teal-soft ring-offset-2 ring-offset-background' : 'bg-white text-primary shadow-pill hover:bg-teal-light',
+                    i === dayIdx ? 'bg-brand-main text-white ring-2 ring-brand-soft ring-offset-2 ring-offset-background' : 'bg-white text-primary shadow-pill hover:bg-brand-light',
                   )}
                 >
                   {i + 1}
@@ -304,7 +304,7 @@ export default function PlanDetail() {
                 kcal={m.kcal}
                 footer={
                   editing && (
-                    <button type="button" onClick={() => setAdding(m.meal)} className="flex h-12 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-divider text-sm font-bold text-teal-dark hover:bg-teal-light">
+                    <button type="button" onClick={() => setAdding(m.meal)} className="flex h-12 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-divider text-sm font-bold text-brand-dark hover:bg-brand-light">
                       <Plus size={18} aria-hidden="true" /> Thêm thực phẩm
                     </button>
                   )
@@ -324,13 +324,13 @@ export default function PlanDetail() {
         {editing ? (
           <div className="flex gap-2">
             <button type="button" onClick={() => setDraft(null)} className="h-12 flex-1 rounded-full bg-surface text-base font-bold text-primary">Hủy</button>
-            <Button className="h-12 flex-[2] rounded-full bg-teal-dark text-base font-bold text-white hover:bg-teal-deep" loading={busy === 'save'} onClick={save}>
+            <Button className="h-12 flex-[2] rounded-full bg-brand-dark text-base font-bold text-white hover:bg-brand-deep" loading={busy === 'save'} onClick={save}>
               <Check size={18} aria-hidden="true" /> Lưu thay đổi
             </Button>
           </div>
         ) : (
           <>
-            <button type="button" onClick={customize} disabled={Boolean(busy)} className="h-10 text-base font-bold text-teal-dark hover:text-teal-deep disabled:opacity-50">
+            <button type="button" onClick={customize} disabled={Boolean(busy)} className="h-10 text-base font-bold text-brand-dark hover:text-brand-deep disabled:opacity-50">
               {plan.mine ? 'Chỉnh sửa thực đơn' : 'Tùy chỉnh & lưu'}
             </button>
             {plan.active ? (
@@ -338,7 +338,7 @@ export default function PlanDetail() {
                 Dừng kế hoạch
               </Button>
             ) : (
-              <Button className="h-12 rounded-full bg-teal-dark text-base font-bold text-white hover:bg-teal-deep" loading={busy === 'start'} onClick={start}>
+              <Button className="h-12 rounded-full bg-brand-dark text-base font-bold text-white hover:bg-brand-deep" loading={busy === 'start'} onClick={start}>
                 Bắt đầu kế hoạch
               </Button>
             )}
@@ -354,9 +354,9 @@ export default function PlanDetail() {
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-bold text-primary">Tên thực đơn</span>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} className="h-12 rounded-md border border-border bg-white px-4 text-base outline-none focus:border-teal-main" />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} className="h-12 rounded-md border border-border bg-white px-4 text-base outline-none focus:border-brand-main" />
           </label>
-          <Button className="h-12 rounded-full bg-teal-dark text-base font-bold text-white" loading={busy === 'rename'} onClick={rename} disabled={!title.trim()}>
+          <Button className="h-12 rounded-full bg-brand-dark text-base font-bold text-white" loading={busy === 'rename'} onClick={rename} disabled={!title.trim()}>
             Lưu tên
           </Button>
           <button type="button" onClick={remove} className="flex h-12 items-center justify-center gap-2 rounded-full bg-error text-base font-bold text-warm-dark">

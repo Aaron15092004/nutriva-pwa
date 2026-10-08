@@ -89,7 +89,7 @@ export function HealthPreview({ v }) {
   ];
   return (
     <section aria-live="polite" aria-label="Chỉ số sức khỏe" className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-card">
-      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-teal-light text-teal-dark" aria-hidden="true">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-light text-brand-dark" aria-hidden="true">
         <BarChart3 size={24} />
       </span>
       <div className="grid flex-1 grid-cols-2 gap-2">
@@ -188,10 +188,10 @@ export function StepAllergy({ v, set }) {
         onClick={() => set({ noAllergy: !v.noAllergy, allergies: [] })}
         className={cx(
           'flex min-h-14 items-center gap-2 rounded-lg border-2 px-4 text-left text-sm font-bold transition active:scale-[0.98]',
-          v.noAllergy ? 'border-teal-main bg-teal-light text-teal-deep' : 'border-border bg-white text-primary hover:border-teal-soft',
+          v.noAllergy ? 'border-brand-main bg-brand-light text-brand-deep' : 'border-border bg-white text-primary hover:border-brand-soft',
         )}
       >
-        <CheckCircle2 size={22} className={v.noAllergy ? 'text-teal-dark' : 'text-subtle'} aria-hidden="true" /> Không có dị ứng đã biết
+        <CheckCircle2 size={22} className={v.noAllergy ? 'text-brand-dark' : 'text-subtle'} aria-hidden="true" /> Không có dị ứng đã biết
       </button>
 
       <div className="flex flex-col gap-1">
@@ -205,7 +205,7 @@ export function StepAllergy({ v, set }) {
           placeholder="Ví dụ: tiểu đường, mỡ máu, huyết áp… hoặc các lưu ý khác."
           value={v.healthNote}
           onChange={(e) => set({ healthNote: e.target.value })}
-          className="resize-none rounded-lg border border-border bg-white p-4 text-base text-primary outline-none transition placeholder:text-subtle focus:border-teal-main focus:ring-2 focus:ring-teal-soft"
+          className="resize-none rounded-lg border border-border bg-white p-4 text-base text-primary outline-none transition placeholder:text-subtle focus:border-brand-main focus:ring-2 focus:ring-brand-soft"
         />
         <p className="text-right font-secondary text-xs text-muted">{v.healthNote.length}/200</p>
       </div>
