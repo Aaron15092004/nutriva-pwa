@@ -42,6 +42,14 @@ export function AuthProvider({ children }) {
         tokenStore.set(d.token);
         setUser(d.user);
       },
+      // Đăng nhập/đăng ký bằng Google: credential = ID token từ Google Identity Services.
+      // Tài khoản chưa tồn tại & không gửi kèm hồ sơ → lỗi 404 code NEEDS_ONBOARDING.
+      async loginWithGoogle(credential, extra = {}) {
+        const d = await api.post('/auth/google', { credential, ...extra });
+        clearApiCache();
+        tokenStore.set(d.token);
+        setUser(d.user);
+      },
       async register(payload) {
         const d = await api.post('/auth/register', payload);
         clearApiCache();

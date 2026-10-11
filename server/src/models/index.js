@@ -12,6 +12,7 @@ const ProfileSchema = new Schema(
     heightCm: { type: Number, min: 100, max: 230, required: true },
     weightKg: { type: Number, min: 25, max: 250, required: true },
     waistCm: { type: Number, min: 40, max: 200, required: true },
+    targetWeightKg: { type: Number, min: 25, max: 250, default: null }, // cân nặng mục tiêu (onboarding)
     goal: { type: String, enum: ['maintain', 'gain', 'lose'], default: 'maintain' },
     activity: { type: String, enum: ['sedentary', 'light', 'moderate', 'active'], default: 'light' },
     diet: { type: String, enum: ['flex-veg', 'normal', 'restricted'], default: 'normal' },
@@ -29,13 +30,17 @@ const AddressSchema = new Schema({ name: String, phone: String, line: String }, 
 const UserSchema = new Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true },
+    // Tài khoản Google có thể không có mật khẩu
+    passwordHash: { type: String, required: function needsPassword() { return !this.googleId; } },
+    googleId: { type: String, unique: true, sparse: true },
     name: { type: String, required: true, trim: true, maxlength: 60 },
     role: { type: String, enum: ['user', 'admin'], default: 'user', index: true },
     avatar: { type: String, default: '' },
     profile: { type: ProfileSchema, required: true },
     consentAt: { type: Date, required: true },
     address: AddressSchema,
+    // Câu trả lời khảo sát lúc onboarding (động lực, trở ngại, thói quen sữa hạt…) — dùng để cá nhân hóa gợi ý
+    survey: { type: Schema.Types.Mixed, default: {} },
     // Kế hoạch ăn đang áp dụng: ngày 1 của kế hoạch = startDate, lặp lại sau mỗi chu kỳ
     activePlan: {
       type: new Schema({ plan: { type: Schema.Types.ObjectId, ref: 'MealPlan' }, startDate: String }, { _id: false }),

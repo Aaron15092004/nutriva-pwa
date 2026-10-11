@@ -57,6 +57,7 @@ export const toProfile = (v) => ({
   heightCm: Number(v.heightCm),
   weightKg: Number(v.weightKg),
   waistCm: Number(v.waistCm),
+  targetWeightKg: v.targetWeightKg ?? null, // giữ mục tiêu đã đặt lúc onboarding
   goal: v.goal,
   activity: v.activity,
   diet: v.diet,

@@ -8,9 +8,10 @@ export const tokenStore = {
 };
 
 export class ApiError extends Error {
-  constructor(status, message) {
+  constructor(status, message, data = {}) {
     super(message);
     this.status = status;
+    this.data = data; // toàn bộ JSON lỗi (vd code: 'NEEDS_ONBOARDING')
   }
 }
 
@@ -29,7 +30,7 @@ async function request(method, path, body) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && token) window.dispatchEvent(new Event('nutriva:logout'));
-    throw new ApiError(res.status, data.message ?? 'Đã có lỗi xảy ra');
+    throw new ApiError(res.status, data.message ?? 'Đã có lỗi xảy ra', data);
   }
   // Ghi thành công → báo cho cache GET (useApi) biết dữ liệu có thể đã cũ
   if (method !== 'GET') window.dispatchEvent(new Event('nutriva:mutated'));

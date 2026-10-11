@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 import { User, Reminder, DailyLog, PlanChoice, Order, Subscription, SupportRequest, PushSubscription, WeightEntry } from '../models/index.js';
 import { nowInTz } from '../services/scheduler.js';
 import { imageUpload, saveImage, deleteImage } from '../services/files.js';
@@ -19,40 +20,119 @@ export const publicUser = (u) => ({
   address: u.address ?? {},
   health: computeHealth(u.profile),
   activePlan: u.activePlan?.plan ? { plan: u.activePlan.plan, startDate: u.activePlan.startDate } : null,
+  hasPassword: Boolean(u.passwordHash),
+  google: Boolean(u.googleId),
   createdAt: u.createdAt,
 });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
+// Câu trả lời khảo sát onboarding: chỉ giữ các khóa & giá trị hợp lệ
+const SURVEY = {
+  motivation: ['look', 'confidence', 'health', 'energy'],
+  obstacle: ['habits', 'emotional', 'support', 'busy', 'knowledge', 'other'],
+  milkHabit: ['daily', 'sometimes', 'never'],
+  logging: ['every', 'sometimes', 'never'],
+  milkTimes: ['breakfast', 'workout', 'afternoon', 'night'],
+};
+function cleanSurvey(s = {}) {
+  const out = {};
+  for (const [k, allowed] of Object.entries(SURVEY)) {
+    const v = s?.[k];
+    if (Array.isArray(v)) out[k] = [...new Set(v.filter((x) => allowed.includes(x)))];
+    else if (allowed.includes(v)) out[k] = v;
+  }
+  return out;
+}
+
+// Tạo tài khoản mới (email/mật khẩu hoặc Google) + dữ liệu khởi tạo
+async function createUser({ email, name, passwordHash, googleId, avatar, profile, survey }) {
+  const user = await User.create({
+    email,
+    name: name.trim().slice(0, 60),
+    passwordHash,
+    googleId,
+    avatar: avatar ?? '',
+    profile,
+    survey: cleanSurvey(survey),
+    role: adminEmails().includes(email.toLowerCase()) ? 'admin' : 'user',
+    consentAt: new Date(),
+    address: { name: name.trim().slice(0, 60) },
+  });
+
+  await WeightEntry.create({ user: user._id, date: nowInTz().date, kg: user.profile.weightKg });
+
+  // Nhắc nhở mặc định cho người dùng mới (giờ uống sữa theo thói quen đã chọn)
+  const milkTime = { breakfast: '07:30', workout: '17:30', afternoon: '15:30', night: '20:30' }[user.survey?.milkTimes?.[0]] ?? '15:30';
+  await Reminder.insertMany([
+    { user: user._id, kind: 'water', title: 'Uống nước', time: '10:00', days: [1, 2, 3, 4, 5] },
+    { user: user._id, kind: 'milk', title: 'Uống sữa hạt', time: milkTime, days: [1, 2, 3, 4, 5] },
+    { user: user._id, kind: 'exercise', title: 'Vận động nhẹ', time: '17:30', days: [1, 2, 3, 4, 5], enabled: false },
+  ]);
+  return user;
+}
+
 router.post(
   '/register',
   ah(async (req, res) => {
-    const { email, password, name, profile, consent } = req.body ?? {};
+    const { email, password, name, profile, consent, survey } = req.body ?? {};
     if (!EMAIL_RE.test(email ?? '')) throw new HttpError(400, 'Email không hợp lệ');
     if (!password || password.length < 6) throw new HttpError(400, 'Mật khẩu cần ít nhất 6 ký tự');
     if (!name?.trim()) throw new HttpError(400, 'Vui lòng nhập tên');
     if (!consent) throw new HttpError(400, 'Bạn cần đồng ý để NUTRIVA sử dụng thông tin');
     if (await User.exists({ email: email.toLowerCase() })) throw new HttpError(409, 'Email đã được đăng ký');
 
-    const user = await User.create({
+    const user = await createUser({ email, name, passwordHash: await bcrypt.hash(password, 10), profile, survey });
+    res.status(201).json({ token: signToken(user), user: publicUser(user) });
+  }),
+);
+
+// ---- Đăng nhập Google (Google Identity Services: client gửi ID token, server xác minh) ----
+const googleClientId = () => process.env.GOOGLE_CLIENT_ID || null;
+let googleClient = null;
+
+router.get('/config', (req, res) => res.json({ googleClientId: googleClientId() }));
+
+router.post(
+  '/google',
+  ah(async (req, res) => {
+    const clientId = googleClientId();
+    if (!clientId) throw new HttpError(503, 'Đăng nhập Google chưa được cấu hình');
+    const { credential, profile, consent, survey, name } = req.body ?? {};
+    if (!credential) throw new HttpError(400, 'Thiếu thông tin đăng nhập Google');
+
+    let payload;
+    try {
+      googleClient ??= new OAuth2Client(clientId);
+      payload = (await googleClient.verifyIdToken({ idToken: credential, audience: clientId })).getPayload();
+    } catch {
+      throw new HttpError(401, 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn, vui lòng thử lại');
+    }
+    if (!payload?.email || !payload.email_verified) throw new HttpError(401, 'Email Google chưa được xác minh');
+    const email = payload.email.toLowerCase();
+
+    let user = await User.findOne({ $or: [{ googleId: payload.sub }, { email }] });
+    if (user) {
+      // Tài khoản email cũ cùng địa chỉ → liên kết Google
+      if (!user.googleId) user.googleId = payload.sub;
+      if (!user.avatar && payload.picture) user.avatar = payload.picture;
+      await user.save();
+      return res.json({ token: signToken(user), user: publicUser(user) });
+    }
+
+    // Chưa có tài khoản: cần hồ sơ từ onboarding để tạo kế hoạch
+    if (!profile) {
+      return res.status(404).json({ code: 'NEEDS_ONBOARDING', message: 'Bạn chưa có tài khoản — trả lời vài câu hỏi để NUTRIVA tạo kế hoạch cho bạn', email, name: payload.name ?? '' });
+    }
+    if (!consent) throw new HttpError(400, 'Bạn cần đồng ý để NUTRIVA sử dụng thông tin');
+    user = await createUser({
       email,
-      name: name.trim(),
-      passwordHash: await bcrypt.hash(password, 10),
+      name: (name || payload.name || email.split('@')[0]).toString(),
+      googleId: payload.sub,
+      avatar: payload.picture,
       profile,
-      role: adminEmails().includes(email.toLowerCase()) ? 'admin' : 'user',
-      consentAt: new Date(),
-      address: { name: name.trim() },
+      survey,
     });
-
-    await WeightEntry.create({ user: user._id, date: nowInTz().date, kg: user.profile.weightKg });
-
-    // Nhắc nhở mặc định cho người dùng mới
-    await Reminder.insertMany([
-      { user: user._id, kind: 'water', title: 'Uống nước', time: '10:00', days: [1, 2, 3, 4, 5] },
-      { user: user._id, kind: 'milk', title: 'Uống sữa hạt', time: '15:30', days: [1, 2, 3, 4, 5] },
-      { user: user._id, kind: 'exercise', title: 'Vận động nhẹ', time: '17:30', days: [1, 2, 3, 4, 5], enabled: false },
-    ]);
-
     res.status(201).json({ token: signToken(user), user: publicUser(user) });
   }),
 );
@@ -62,6 +142,7 @@ router.post(
   ah(async (req, res) => {
     const { email, password } = req.body ?? {};
     const user = await User.findOne({ email: (email ?? '').toLowerCase() });
+    if (user && !user.passwordHash) throw new HttpError(401, 'Tài khoản này đăng nhập bằng Google — bấm "Tiếp tục với Google"');
     if (!user || !(await bcrypt.compare(password ?? '', user.passwordHash))) {
       throw new HttpError(401, 'Email hoặc mật khẩu không đúng');
     }
@@ -156,7 +237,8 @@ router.post(
   requireAuth,
   ah(async (req, res) => {
     const { current, next } = req.body ?? {};
-    if (!(await bcrypt.compare(current ?? '', req.user.passwordHash))) throw new HttpError(400, 'Mật khẩu hiện tại không đúng');
+    // Tài khoản Google chưa có mật khẩu: được đặt mật khẩu mới mà không cần mật khẩu cũ
+    if (req.user.passwordHash && !(await bcrypt.compare(current ?? '', req.user.passwordHash))) throw new HttpError(400, 'Mật khẩu hiện tại không đúng');
     if (!next || next.length < 6) throw new HttpError(400, 'Mật khẩu mới cần ít nhất 6 ký tự');
     req.user.passwordHash = await bcrypt.hash(next, 10);
     await req.user.save();

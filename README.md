@@ -41,6 +41,7 @@ Nhắc nhở đẩy (Web Push) cần bản build (service worker) và HTTPS ho�
 | `MONGODB_URI` | ✔ (production) | Chuỗi kết nối Atlas |
 | `JWT_SECRET` | ✔ (production) | Khóa ký phiên đăng nhập |
 | `ADMIN_EMAILS` | | Email tự động có quyền admin |
+| `GOOGLE_CLIENT_ID` | | Bật "Tiếp tục với Google" (OAuth client loại Web; thêm origin của web vào *Authorized JavaScript origins*). Trống → ẩn nút |
 | `ANTHROPIC_API_KEY` | | Bật Trợ lý NUTRIVA dùng Claude (`claude-opus-5-5`). Trống → trả lời theo từ khóa |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | | Khóa Web Push; trống → tự tạo và lưu vào DB |
 | `APP_TZ` | | Múi giờ cho nhắc nhở & gói định kỳ (mặc định `Asia/Ho_Chi_Minh`) |
