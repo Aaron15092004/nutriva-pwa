@@ -11,7 +11,7 @@ export function useAdminList(path, params) {
     setState((s) => ({ ...s, loading: true, error: '' }));
     try {
       const d = await api.get(`${path}?${qs}`);
-      setState({ items: d.items, total: d.total, loading: false, error: '' });
+      setState({ items: d.items, total: d.total, loading: false, error: '', data: d }); // data: phản hồi gốc (vd số đếm hàng chờ)
     } catch (e) {
       setState((s) => ({ ...s, loading: false, error: e.message }));
     }
@@ -72,15 +72,108 @@ export function Pager({ page, limit, total, onPage }) {
   );
 }
 
-export function Field({ label, hint, full, children, htmlFor }) {
+// Ô nhập có nhãn; error: hiện ngay dưới ô (thay cho gợi ý), required: dấu * đỏ cạnh nhãn
+export function Field({ label, hint, full, children, htmlFor, error, required }) {
+  const lbl = (
+    <>
+      {label}
+      {required && <span className="req" aria-hidden="true"> *</span>}
+    </>
+  );
   return (
-    <div className={`a-field ${full ? 'full' : ''}`}>
-      {label && (htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <span className="lbl">{label}</span>)}
+    <div className={`a-field ${full ? 'full' : ''} ${error ? 'invalid' : ''}`}>
+      {label && (htmlFor ? <label htmlFor={htmlFor}>{lbl}</label> : <span className="lbl">{lbl}</span>)}
       {children}
-      {hint && <span className="hint">{hint}</span>}
+      {error ? (
+        <span className="a-err" id={htmlFor ? `${htmlFor}-err` : undefined} role="alert">{error}</span>
+      ) : (
+        hint && <span className="hint">{hint}</span>
+      )}
     </div>
   );
 }
+
+// ---------- Ô nhập số ----------
+const fmtNum = (v, money) => (v == null || Number.isNaN(v) ? '' : money ? Math.round(v).toLocaleString('vi-VN') : String(v).replace('.', ','));
+// "35.000" / "35000" / "5,5" / "5.5" → số; trống → null; sai → NaN
+export function parseNum(text, { money = false, integer = false } = {}) {
+  const t = String(text ?? '').replace(/\s/g, '');
+  if (t === '' || t === '-') return null;
+  // Tiền & số nguyên: dấu . và , đều là phân cách hàng nghìn. Số thập phân: , hoặc . là dấu thập phân
+  const raw = money || integer ? t.replace(/[.,]/g, '') : t.replace(',', '.');
+  if (!/^-?\d*\.?\d*$/.test(raw)) return NaN;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+// Kiểm tra 1 giá trị số theo luật { required, min, max, integer } → thông báo lỗi tiếng Việt hoặc ''
+export function numError(v, { required, min, max, integer, money } = {}) {
+  if (Number.isNaN(v)) return 'Chỉ nhập số (vd: 35000 hoặc 5,5)';
+  if (v == null) return required ? 'Bắt buộc nhập' : '';
+  if (integer && !Number.isInteger(v)) return 'Nhập số nguyên';
+  if (min != null && v < min) return `Tối thiểu ${fmtNum(min, money)}`;
+  if (max != null && v > max) return `Tối đa ${fmtNum(max, money)}`;
+  return '';
+}
+
+// Ô số dễ nhập: xóa trống được (không tự thành 0), gõ dấu phẩy thập phân, tiền tự thêm dấu chấm khi rời ô,
+// cuộn chuột không làm đổi số. value: number | null → onChange(number | null). Gõ chữ → báo "Chỉ nhập số".
+export function NumInput({ id, value, onChange, money = false, integer = false, suffix, placeholder, disabled, invalid, className = '', style, onBlur, onFocus, ...rest }) {
+  const [text, setText] = useState(() => fmtNum(value, money));
+  const [focused, setFocused] = useState(false);
+  const [bad, setBad] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(fmtNum(value, money));
+  }, [value, focused, money]);
+  const change = (t) => {
+    setText(t);
+    const n = parseNum(t, { money, integer });
+    setBad(Number.isNaN(n));
+    if (!Number.isNaN(n)) onChange(n);
+  };
+  return (
+    <span className={`a-num ${className}`} style={style}>
+      <input
+        id={id}
+        className="a-input"
+        type="text"
+        inputMode={money || integer ? 'numeric' : 'decimal'}
+        autoComplete="off"
+        value={text}
+        placeholder={placeholder}
+        disabled={disabled}
+        aria-invalid={invalid || bad || undefined}
+        aria-describedby={id ? `${id}-err` : undefined}
+        onFocus={(e) => {
+          setFocused(true);
+          if (money && value != null) setText(String(Math.round(value)));
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          if (!bad) setText(fmtNum(parseNum(text, { money, integer }), money));
+          onBlur?.(e);
+        }}
+        onChange={(e) => change(e.target.value)}
+        {...rest}
+      />
+      {suffix && <span className="a-num-suffix" aria-hidden="true">{suffix}</span>}
+      {bad && <span className="a-err">Chỉ nhập số</span>}
+    </span>
+  );
+}
+
+// "Sữa hạt Mạch Nhiên" → "sua-hat-mach-nhien" (bỏ dấu tiếng Việt)
+export const slugify = (s) =>
+  String(s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
 
 // ---------- Inputs ----------
 export async function uploadImage(file) {
@@ -160,7 +253,7 @@ export function VariantsInput({ value = [], onChange }) {
       {value.map((v, i) => (
         <div key={i} className="row" style={{ gap: 8 }}>
           <input className="a-input grow" aria-label={`Tên mức độ ${i + 1}`} placeholder="Tên mức độ (vd: Hatha yoga)" value={v.name} onChange={(e) => set(i, { name: e.target.value })} />
-          <input className="a-input" style={{ width: 96 }} type="number" step="0.1" min="0.5" max="25" aria-label={`MET mức độ ${i + 1}`} placeholder="MET" value={v.met ?? ''} onChange={(e) => set(i, { met: Number(e.target.value) })} />
+          <NumInput style={{ width: 96 }} aria-label={`MET mức độ ${i + 1}`} placeholder="MET" value={v.met ?? null} invalid={v.met != null && !(v.met > 0 && v.met <= 25)} onChange={(met) => set(i, { met })} />
           <button type="button" className="icon-btn" aria-label={`Xóa mức độ ${i + 1}`} disabled={value.length <= 1} onClick={() => onChange(value.filter((_, j) => j !== i))}><Trash2 size={16} color="var(--danger)" /></button>
         </div>
       ))}
@@ -200,7 +293,7 @@ export function IngredientsInput({ value = [], onChange }) {
               <input className="a-input" style={{ width: '100%' }} list="ing-foods" aria-label={`Nguyên liệu ${i + 1}`} placeholder="Gõ tên thực phẩm…" value={v.name ?? ''} onChange={(e) => setName(i, e.target.value)} aria-invalid={!f && Boolean(v.name)} />
               {v.name && !f && <div className="xs" style={{ color: 'var(--danger)' }}>Chưa có trong bảng thực phẩm</div>}
             </div>
-            <input className="a-input" style={{ width: 88 }} type="number" min="1" step="any" aria-label={`Số gram nguyên liệu ${i + 1}`} placeholder="gram" value={v.grams ?? ''} onChange={(e) => set(i, { grams: e.target.value === '' ? '' : Number(e.target.value) })} />
+            <NumInput style={{ width: 96 }} suffix="g" aria-label={`Số gram nguyên liệu ${i + 1}`} placeholder="gram" value={v.grams === '' ? null : v.grams ?? null} invalid={v.grams != null && v.grams !== '' && !(v.grams > 0)} onChange={(g) => set(i, { grams: g ?? '' })} />
             <button type="button" className="icon-btn" aria-label={`Xóa nguyên liệu ${i + 1}`} onClick={() => onChange(value.filter((_, j) => j !== i))}><Trash2 size={16} color="var(--danger)" /></button>
           </div>
         );
@@ -252,7 +345,7 @@ export function MicrosInput({ value = {}, onChange, readOnly }) {
             {MICRONUTRIENTS.filter((m) => m.kind === kind).map((m) => (
               <label key={m.id}>
                 <span className="xs muted">{m.label} ({m.unit})</span>
-                <input className="a-input" type="number" step="any" min="0" value={value?.[m.id] ?? ''} readOnly={readOnly} onChange={(e) => set(m.id, e.target.value)} />
+                <NumInput value={value?.[m.id] === '' || value?.[m.id] == null ? null : Number(value[m.id])} disabled={readOnly} aria-label={m.label ?? m.id} onChange={(v) => set(m.id, v ?? '')} />
               </label>
             ))}
           </div>

@@ -4,7 +4,8 @@ import { HttpError } from '../middleware/auth.js';
 import { getSettings } from './catalog.js';
 import { nowInTz, addDays } from './scheduler.js';
 
-// Gói sử dụng app: người dùng chưa kích hoạt chỉ xem N/7 ngày kế hoạch (N = freePlanDays) và không có nhắc nhở.
+// Gói sử dụng app: người mới phải tự bấm "Kích hoạt dùng thử" → mở kế hoạch N ngày (N = freePlanDays), hết dùng thử là khóa hẳn.
+// Nhắc nhở chỉ dành cho tài khoản còn hạn gói.
 // Kích hoạt / gia hạn bằng: mã in trên chai (QR hoặc nhập tay) • đơn mua trong app đã thanh toán • admin cộng tay.
 const DAY_MS = 86400000;
 export const DEFAULTS = { enabled: true, freePlanDays: 3, daysPerBottle: 2, daysPerSet: 4, daysPerTreat: 0, expiryNoticeDays: 2 };
@@ -22,10 +23,29 @@ export async function hasAccess(user) {
   return !cfg.enabled || isActive(user) || user?.role === 'admin';
 }
 
-// Ngày thứ mấy kể từ ngày đăng ký (theo giờ VN) — người chưa kích hoạt dùng thử kế hoạch tự động trong N ngày đầu
+// Ngày thứ mấy kể từ lúc kích hoạt dùng thử (theo giờ VN); chưa kích hoạt → null
 export function trialDayIndex(user, date) {
-  const start = nowInTz(new Date(user.createdAt ?? Date.now())).date;
+  const t = user?.membership?.trialStart;
+  if (!t) return null;
+  const start = nowInTz(new Date(t)).date;
   return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / DAY_MS);
+}
+
+// Đang trong thời gian dùng thử (đã bấm kích hoạt, chưa quá N ngày)
+export function trialActive(user, cfg, date = nowInTz().date) {
+  const i = trialDayIndex(user, date);
+  return i != null && i >= 0 && i < cfg.freePlanDays;
+}
+
+// Bấm "Kích hoạt dùng thử": mỗi tài khoản 1 lần, nguyên tử (bấm 2 lần / 2 thiết bị cùng lúc vẫn chỉ tính 1)
+export async function startTrial(user) {
+  const cfg = await membershipConfig();
+  if (!cfg.enabled) throw new HttpError(400, 'Tính năng đang mở cho mọi người, không cần dùng thử');
+  if (!(cfg.freePlanDays > 0)) throw new HttpError(400, 'Hiện chưa có chương trình dùng thử — quét mã trên chai sữa để kích hoạt');
+  if (isActive(user)) throw new HttpError(400, 'Bạn đang có gói NUTRIVA còn hạn');
+  const r = await User.updateOne({ _id: user._id, 'membership.trialStart': null, 'membership.until': null }, { $set: { 'membership.trialStart': new Date() } });
+  if (!r.modifiedCount) throw new HttpError(409, 'Tài khoản đã dùng thử trước đây — quét mã trên chai sữa để tiếp tục');
+  return User.findById(user._id);
 }
 
 export async function status(user) {
@@ -33,7 +53,9 @@ export async function status(user) {
   const active = isActive(user);
   const until = user.membership?.until ?? null;
   const daysLeft = active ? Math.ceil((new Date(until).getTime() - Date.now()) / DAY_MS) : 0;
-  const trialStart = nowInTz(new Date(user.createdAt ?? Date.now())).date;
+  const today = nowInTz().date;
+  const started = Boolean(user.membership?.trialStart);
+  const trialFrom = started ? nowInTz(new Date(user.membership.trialStart)).date : null;
   return {
     enabled: cfg.enabled,
     active: !cfg.enabled || active || user.role === 'admin',
@@ -42,8 +64,11 @@ export async function status(user) {
     daysLeft,
     expiring: active && daysLeft <= cfg.expiryNoticeDays,
     freePlanDays: cfg.freePlanDays,
-    trialEnds: addDays(trialStart, cfg.freePlanDays - 1),
-    trialLeft: Math.max(0, cfg.freePlanDays - trialDayIndex(user, nowInTz().date)), // số ngày dùng thử còn lại, tính cả hôm nay
+    trialStarted: started,
+    // Còn quyền dùng thử: chưa từng dùng thử, chưa từng có gói
+    trialAvailable: cfg.enabled && cfg.freePlanDays > 0 && !started && !until && user.role !== 'admin',
+    trialEnds: started ? addDays(trialFrom, cfg.freePlanDays - 1) : null,
+    trialLeft: started ? Math.max(0, Math.min(cfg.freePlanDays, cfg.freePlanDays - trialDayIndex(user, today))) : 0, // số ngày dùng thử còn lại, tính cả hôm nay
     daysPerBottle: cfg.daysPerBottle,
     daysPerSet: cfg.daysPerSet,
   };
@@ -69,8 +94,8 @@ export const normalizeCode = (raw) => String(raw ?? '').toUpperCase().replace(/[
 export const prettyCode = (c) => `${c.slice(0, 5)}-${c.slice(5)}`;
 
 // Tạo lô mã kích hoạt (in lên chai). Trả về danh sách mã.
-export async function createBatch({ name, productSlug, lot, days, quantity, expiresAt, note, createdBy }) {
-  const batch = await ActivationBatch.create({ name, productSlug, lot, days, quantity, expiresAt, note, createdBy });
+export async function createBatch({ name, productSlug, lot, days, quantity, packSize = 1, unit = 'chai', expiresAt, note, createdBy }) {
+  const batch = await ActivationBatch.create({ name, productSlug, lot, days, quantity, packSize, unit, expiresAt, note, createdBy });
   const docs = [];
   const seen = new Set();
   while (docs.length < quantity) {

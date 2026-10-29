@@ -94,9 +94,15 @@ export async function placeOrder(data, { couponId } = {}) {
 // (kho đã hoàn lại — mở lại sẽ lệch tồn kho, cần tạo đơn mới).
 export const ORDER_STATUSES = ['confirmed', 'preparing', 'shipping', 'done', 'cancelled'];
 export const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'];
+// Đơn đi theo thứ tự xác nhận → chuẩn bị → đang giao → hoàn tất (được nhảy bước). Lùi tối đa 1 bước để sửa bấm nhầm
+// (trừ đơn đã hoàn tất). Hủy được từ mọi trạng thái; đơn đã hủy không mở lại.
+const FLOW = ['confirmed', 'preparing', 'shipping', 'done'];
 export function canMove(from, to) {
-  if (!ORDER_STATUSES.includes(to)) return false;
-  return from !== 'cancelled' && from !== to;
+  if (!ORDER_STATUSES.includes(to) || from === 'cancelled' || from === to) return false;
+  if (to === 'cancelled') return true;
+  const a = FLOW.indexOf(from);
+  const b = FLOW.indexOf(to);
+  return b > a || (b === a - 1 && from !== 'done');
 }
 
 // Hủy đơn nguyên tử: chỉ 1 lệnh hủy thắng → hoàn kho + trả lượt mã giảm giá đúng 1 lần (kể cả khi user & admin cùng bấm).

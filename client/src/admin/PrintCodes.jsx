@@ -33,7 +33,7 @@ export default function PrintCodes() {
       <header className="mb-4 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-xl font-extrabold text-brand-core">{state.batch.name}</h1>
-          <p className="text-sm text-muted">{state.labels.length} tem chưa dùng • mỗi mã +{state.batch.days} ngày • in khổ A4, cắt theo đường viền nhạt</p>
+          <p className="text-sm text-muted">{state.labels.length} tem chưa dùng • mỗi mã +{state.batch.days} ngày • {state.batch.packSize > 1 ? `dán 1 tem cho mỗi lốc ${state.batch.packSize} ${state.batch.unit}` : `dán 1 tem cho mỗi ${state.batch.unit ?? 'chai'}`} • in khổ A4, cắt theo đường viền nhạt</p>
         </div>
         <button type="button" onClick={() => window.print()} className="inline-flex h-11 items-center gap-2 rounded-full bg-brand-dark px-6 font-bold text-white">
           <Printer size={18} aria-hidden="true" /> In tem
@@ -42,6 +42,7 @@ export default function PrintCodes() {
       <div className="grid grid-cols-4 gap-0 print:grid-cols-4">
         {state.labels.map((c) => (
           <div key={c._id} className="flex break-inside-avoid flex-col items-center gap-1 border border-dashed border-border p-3 text-center">
+            {state.batch.packSize > 1 && <span className="rounded-full bg-brand-core px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Lốc {state.batch.packSize} {state.batch.unit}</span>}
             <img src={c.qr} alt={`QR ${c.pretty}`} className="size-28" />
             <p className="font-mono text-sm font-bold tracking-wider text-primary">{c.pretty}</p>
             <p className="text-[10px] leading-tight text-secondary">Quét để kích hoạt app NUTRIVA • +{c.days} ngày</p>

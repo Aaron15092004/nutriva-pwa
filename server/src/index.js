@@ -75,6 +75,19 @@ app.use(metrics);
 app.use(express.json({ limit: '200kb' }));
 app.use('/api', apiLimiter);
 
+// Mã bản build client đang triển khai: gửi kèm mọi phản hồi API → app đang chạy bản cũ (service worker giữ cache) tự cập nhật
+const CLIENT_BUILD = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist/version.json'), 'utf8')).build;
+  } catch {
+    return null;
+  }
+})();
+app.use('/api', (req, res, next) => {
+  if (CLIENT_BUILD) res.set('X-App-Build', CLIENT_BUILD);
+  next();
+});
+
 app.get('/api/health', (req, res) => res.json({ ok: true, db: mongoose.connection.readyState === 1 }));
 
 // Ảnh upload từ trang Admin (MongoDB GridFS)
@@ -162,7 +175,7 @@ if (fs.existsSync(clientDist)) {
       index: false,
       setHeaders: (res, file) => {
         if (file.includes(`${path.sep}assets${path.sep}`)) res.set('Cache-Control', 'public, max-age=31536000, immutable');
-        else if (/\.(webp|png|svg|jpg|woff2)$/.test(file)) res.set('Cache-Control', 'public, max-age=604800');
+        else if (/\.(webp|png|svg|jpg|woff2)$/.test(file)) res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400'); // ảnh thay cùng tên → cập nhật trong 1 giờ
         else res.set('Cache-Control', 'no-cache');
       },
     }),
@@ -175,11 +188,30 @@ app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') return res.status(400).json({ message: 'Dữ liệu gửi lên không đúng định dạng' });
   if (err.type === 'entity.too.large') return res.status(413).json({ message: 'Dữ liệu gửi lên quá lớn' });
   if (err.name === 'ValidationError') {
-    const first = Object.values(err.errors ?? {})[0];
-    return res.status(400).json({ message: `Dữ liệu không hợp lệ: ${first?.path ?? ''}`, details: err.message });
+    // Lỗi theo từng trường bằng tiếng Việt (form admin hiện ngay dưới ô nhập)
+    const fields = {};
+    for (const e of Object.values(err.errors ?? {})) {
+      const p = e.path?.split('.')[0];
+      if (!p || fields[p]) continue;
+      const k = e.kind;
+      fields[p] =
+        k === 'required' ? 'Bắt buộc nhập'
+        : k === 'min' ? `Tối thiểu ${e.properties?.min}`
+        : k === 'max' ? `Tối đa ${e.properties?.max}`
+        : k === 'maxlength' ? `Tối đa ${e.properties?.maxlength} ký tự`
+        : k === 'regexp' ? 'Sai định dạng'
+        : k === 'enum' ? 'Giá trị không hợp lệ'
+        : e.name === 'CastError' ? (e.kind === 'Number' ? 'Phải là số' : 'Sai kiểu dữ liệu')
+        : 'Không hợp lệ';
+    }
+    const n = Object.keys(fields).length;
+    return res.status(400).json({ message: n ? `Kiểm tra lại ${n} trường được đánh dấu` : 'Dữ liệu không hợp lệ', fields });
   }
   if (err.name === 'CastError') return res.status(400).json({ message: 'Mã không hợp lệ' });
-  if (err.code === 11000) return res.status(409).json({ message: `Giá trị đã tồn tại: ${Object.keys(err.keyValue ?? {}).join(', ')}` });
+  if (err.code === 11000) {
+    const keys = Object.keys(err.keyValue ?? err.keyPattern ?? {});
+    return res.status(409).json({ message: `Giá trị đã được dùng: ${keys.join(', ')}`, fields: Object.fromEntries(keys.map((k) => [k, 'Đã được dùng, hãy chọn giá trị khác'])) });
+  }
   if (err.name === 'MulterError') return res.status(400).json({ message: 'Ảnh quá lớn (tối đa 3 MB)' });
   // Mất kết nối DB tạm thời → 503 (client hiện "thử lại", không đăng xuất)
   if (/MongoNetwork|MongoServerSelection|MongoNotConnected/.test(err.name ?? '')) {
@@ -188,7 +220,7 @@ app.use((err, req, res, next) => {
   }
   const status = err.status ?? 500;
   if (status >= 500) console.error(err);
-  res.status(status).json({ message: status >= 500 ? 'Lỗi máy chủ, vui lòng thử lại' : err.message, ...(err.code === 'MEMBERSHIP_REQUIRED' ? { code: err.code } : {}) });
+  res.status(status).json({ message: status >= 500 ? 'Lỗi máy chủ, vui lòng thử lại' : err.message, ...(err.code === 'MEMBERSHIP_REQUIRED' ? { code: err.code } : {}), ...(err.fields && status < 500 ? { fields: err.fields } : {}) });
 });
 
 const PORT = process.env.PORT ?? 5000;

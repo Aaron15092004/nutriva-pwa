@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { Product, StockLot, StockMove } from '../models/index.js';
 import { ah, requireAuth, requireAdmin, HttpError } from '../middleware/auth.js';
 import { inTransaction } from '../services/orders.js';
-import { receive, adjust, waste } from '../services/inventory.js';
+import { receive, adjust, waste, wasteExpired, reservedQty } from '../services/inventory.js';
 import { createBatch, membershipConfig } from '../services/membership.js';
 import { nowInTz, addDays } from '../services/scheduler.js';
 import { audit } from '../services/audit.js';
@@ -14,6 +14,9 @@ const router = Router();
 router.use(requireAuth, requireAdmin);
 
 const TYPE_LABEL = { import: 'Nhập kho', sale: 'Bán', return: 'Hoàn (hủy đơn)', adjust: 'Kiểm kê', waste: 'Xuất hủy' };
+// Số ngày hàng nên đủ bán (để gợi ý số cần nhập / nấu thêm): sữa tươi hạn ngắn → 3 ngày; gói hạt khô → 2 tuần
+const COVER_DAYS = { milk: 3, diy: 14, treat: 7 };
+const UNIT = { milk: 'chai', diy: 'gói', treat: 'hộp' };
 const oid = (v) => (mongoose.isValidObjectId(v) ? new mongoose.Types.ObjectId(v) : null);
 
 // Tổng quan từng sản phẩm
@@ -24,7 +27,7 @@ router.get(
     const soon = addDays(today, 2);
     const since7 = new Date(Date.now() - 7 * 86400000);
     const since30 = new Date(Date.now() - 30 * 86400000);
-    const [products, sales, lots] = await Promise.all([
+    const [products, sales, lots, held] = await Promise.all([
       Product.find().sort({ type: 1, sort: 1 }).select('slug name type image price stock lowStock active').lean(),
       StockMove.aggregate([
         { $match: { type: { $in: ['sale', 'return'] }, createdAt: { $gte: since30 } } },
@@ -35,6 +38,7 @@ router.get(
         { $sort: { expiryDate: 1 } },
         { $group: { _id: '$product', lots: { $sum: 1 }, nextExpiry: { $first: '$expiryDate' }, nextLot: { $first: '$code' }, nextRemaining: { $first: '$remaining' }, expiringQty: { $sum: { $cond: [{ $and: [{ $ne: ['$expiryDate', null] }, { $lte: ['$expiryDate', soon] }] }, '$remaining', 0] } } } },
       ]),
+      reservedQty(),
     ]);
     const S = new Map(sales.map((x) => [String(x._id), x]));
     const L = new Map(lots.map((x) => [String(x._id), x]));
@@ -43,8 +47,15 @@ router.get(
       const l = L.get(String(p._id));
       const perDay = Math.round((s.sold7 / 7) * 10) / 10;
       const status = p.stock == null ? 'untracked' : p.stock === 0 ? 'out' : p.stock <= (p.lowStock ?? 10) ? 'low' : 'ok';
+      const reserved = held.get(String(p._id)) ?? 0;
+      const target = Math.max(Math.ceil(perDay * (COVER_DAYS[p.type] ?? 7)), (p.lowStock ?? 10) * 2);
       return {
         ...p,
+        unit: UNIT[p.type] ?? 'cái',
+        reserved,
+        physical: p.stock == null ? null : p.stock + reserved,
+        suggest: p.stock == null ? null : Math.max(0, target - p.stock),
+        coverTarget: COVER_DAYS[p.type] ?? 7,
         sold7: s.sold7,
         sold30: s.sold30,
         perDay,
@@ -64,6 +75,8 @@ router.get(
         low: items.filter((i) => i.status === 'low').length,
         expiring: items.reduce((n, i) => n + i.expiringQty, 0),
         expiredLots: await StockLot.countDocuments({ remaining: { $gt: 0 }, expiryDate: { $lt: today } }),
+        untracked: items.filter((i) => i.status === 'untracked').length,
+        reorder: items.filter((i) => i.active && i.suggest > 0).length,
       },
       today,
     });
@@ -122,13 +135,19 @@ router.post(
   '/receive',
   ah(async (req, res) => {
     const p = await productOr404(req.body?.product);
-    const { qty, lotCode, mfgDate, expiryDate, cost, note, codes } = req.body ?? {};
+    const { qty, lotCode, mfgDate, expiryDate, cost, note, codes, packSize } = req.body ?? {};
+    const pack = Math.floor(Number(packSize ?? 1));
+    if (codes && !(pack >= 1 && pack <= 1000)) throw new HttpError(400, 'Quy cách mã không hợp lệ', { packSize: 'Từ 1 đến 1.000' });
     const r = await inTransaction((session) => receive({ productId: p._id, qty, lotCode, mfgDate, expiryDate, cost, note, by: req.user.email }, session));
     let batch = null;
     if (codes && ['milk', 'diy'].includes(p.type)) {
       const cfg = await membershipConfig();
-      const days = p.membershipDays ?? (p.type === 'milk' ? cfg.daysPerBottle : cfg.daysPerSet);
-      if (days > 0) batch = await createBatch({ name: `${productTitle(p)} • lô ${r.lot.code}`, productSlug: p.slug, lot: r.lot._id, days, quantity: r.lot.qty, createdBy: req.user.email });
+      const perUnit = p.membershipDays ?? (p.type === 'milk' ? cfg.daysPerBottle : cfg.daysPerSet);
+      // 1 mã cho mỗi chai, hoặc 1 mã cho cả lốc / thùng (ngày = số đơn vị × ngày mỗi đơn vị)
+      const days = Math.min(365, perUnit * pack);
+      if (days > 0) {
+        batch = await createBatch({ name: `${productTitle(p)} • lô ${r.lot.code}${pack > 1 ? ` • lốc ${pack}` : ''}`, productSlug: p.slug, lot: r.lot._id, days, quantity: Math.ceil(r.lot.qty / pack), packSize: pack, unit: UNIT[p.type], createdBy: req.user.email });
+      }
     }
     await audit(req, 'inventory.receive', { entity: 'Product', entityId: p._id, summary: `${productTitle(p)}: +${r.lot.qty} (lô ${r.lot.code}${expiryDate ? `, HSD ${expiryDate}` : ''})${batch ? ` • ${batch.quantity} mã kích hoạt` : ''}` });
     res.status(201).json({ lot: r.lot, stock: r.product.stock, batch });
@@ -141,7 +160,7 @@ router.post(
     const p = await productOr404(req.body?.product);
     const r = await inTransaction((session) => adjust({ productId: p._id, actual: req.body?.actual, note: req.body?.note, by: req.user.email }, session));
     await audit(req, 'inventory.adjust', { entity: 'Product', entityId: p._id, summary: `${p.name}: ${p.stock ?? '∞'} → ${r.product.stock} (${r.diff >= 0 ? '+' : ''}${r.diff})` });
-    res.json({ stock: r.product.stock, diff: r.diff });
+    res.json({ stock: r.product.stock, diff: r.diff, held: r.held });
   }),
 );
 
@@ -153,6 +172,16 @@ router.post(
     const r = await inTransaction((session) => waste({ productId: p._id, lotId, qty: req.body?.qty, note: req.body?.note, by: req.user.email }, session));
     await audit(req, 'inventory.waste', { entity: 'Product', entityId: p._id, summary: `${p.name}: −${req.body?.qty} (${req.body?.note || 'xuất hủy'})` });
     res.json({ stock: r.product.stock });
+  }),
+);
+
+// Xuất hủy ngay mọi lô quá hạn còn tồn (scheduler cũng tự làm việc này)
+router.post(
+  '/waste-expired',
+  ah(async (req, res) => {
+    const r = await wasteExpired(req.user.email);
+    if (r.qty) await audit(req, 'inventory.waste', { summary: `Xuất hủy ${r.qty} đơn vị từ ${r.lots} lô quá hạn` });
+    res.json(r);
   }),
 );
 

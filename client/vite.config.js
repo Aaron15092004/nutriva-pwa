@@ -3,7 +3,19 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath } from 'node:url';
 
+// Mã phiên bản của mỗi lần build: server đọc dist/version.json và gửi kèm mọi phản hồi API (X-App-Build)
+// → app đang chạy bản cũ (service worker còn giữ) tự nhận ra và cập nhật.
+const BUILD_ID = Date.now().toString(36);
+const versionFile = () => ({
+  name: 'nutriva-version',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) });
+  },
+});
+
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   resolve: {
     alias: { '@shared': fileURLToPath(new URL('../shared', import.meta.url)) },
   },
@@ -14,8 +26,9 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    versionFile(),
     VitePWA({
-      registerType: 'prompt', // có bản mới → hiện thông báo "Cập nhật" (xem UpdatePrompt), không tự tải lại giữa chừng
+      registerType: 'prompt', // có bản mới → AppBanners tự áp dụng lúc an toàn (vừa mở app / chuyển trang / app ẩn đi), không tải lại khi đang gõ
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'NUTRIVA – Dinh dưỡng theo cách của bạn',
@@ -36,6 +49,7 @@ export default defineConfig({
       },
       workbox: {
         importScripts: ['push-sw.js'],
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'],
         // Font: chỉ cài sẵn bộ latin + tiếng Việt (các bộ khác như cyrillic, greek không dùng)
         globIgnores: ['**/img/activities/**', '**/img/plans/**', '**/img/products/**', '**/img/banners/**', '**/img/research/**', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,hebrew,math,symbols}-*.woff2'],

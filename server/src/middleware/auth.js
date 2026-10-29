@@ -55,9 +55,11 @@ export class MembershipRequired extends Error {
 // Bọc handler async để lỗi được chuyển tới error middleware
 export const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+// fields: lỗi theo từng trường { tênTrường: 'thông báo' } → form hiện lỗi ngay dưới ô nhập
 export class HttpError extends Error {
-  constructor(status, message) {
+  constructor(status, message, fields) {
     super(message);
     this.status = status;
+    if (fields) this.fields = fields;
   }
 }

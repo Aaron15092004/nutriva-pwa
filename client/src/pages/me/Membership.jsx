@@ -13,7 +13,7 @@ import Nuti from '../../components/mascot/Nuti.jsx';
 import ChannelLinks from '../../components/promo/ChannelLinks.jsx';
 import QrScanner from '../../components/membership/QrScanner.jsx';
 import TrialStrip from '../../components/membership/TrialStrip.jsx';
-import { DayValueTiles } from '../../components/membership/Paywall.jsx';
+import { DayValueTiles, TrialButton } from '../../components/membership/Paywall.jsx';
 import { BottleScene } from '../../components/brand/MilkArt.jsx';
 import { flavorOf, FLAVORS } from '../../components/brand/art.js';
 
@@ -30,15 +30,18 @@ const vnd = (n) => `${Number(n ?? 0).toLocaleString('vi-VN')}đ`;
 const CARD = {
   member: { bg: 'linear-gradient(140deg, #2F4B23 0%, #435A1C 55%, #5E7F27 100%)', dark: true, line: 'mach-nhien' },
   trial: { bg: 'radial-gradient(120% 100% at 90% 10%, #FFFFFF 0%, #F2F8E1 40%, #C9E099 100%)', line: 'sen-com' },
+  new: { bg: 'radial-gradient(120% 100% at 90% 10%, #FFFFFF 0%, #FFF6DF 40%, #F7D98F 100%)', line: 'mach-nhien' },
   expired: { bg: 'radial-gradient(120% 100% at 90% 10%, #FFFFFF 0%, #FFF0E7 40%, #F5BFA0 100%)', line: 'lut-thanh' },
   over: { bg: 'radial-gradient(120% 100% at 90% 10%, #FFFFFF 0%, #FFF0E7 40%, #F5BFA0 100%)', line: 'lut-thanh' },
 };
 const CHIP = {
+  new: ['Chưa kích hoạt', Sparkles],
   trial: ['Dùng thử miễn phí', Sparkles],
   expired: ['Đã hết hạn', Lock],
   over: ['Hết dùng thử', Lock],
 };
 const SUB = {
+  new: () => 'Mỗi tài khoản được dùng thử 1 lần',
   expired: (m) => `Hết hạn ${fmtDate(m.until)}`,
   over: () => 'Kế hoạch & nhắc nhở đang tạm khóa',
   trial: (m) => `Kế hoạch mở ngày 1–${m.freePlanDays} trên 7 ngày`,
@@ -68,7 +71,7 @@ function MemberCard({ m }) {
             <ChipIcon size={12} aria-hidden="true" /> {chipText}
           </span>
           {big == null ? (
-            <p className="mt-auto font-display text-[26px] font-bold leading-8 [font-variation-settings:'SOFT'_100]">{state === 'expired' ? 'Gia hạn để dùng tiếp' : 'Kích hoạt để dùng tiếp'}</p>
+            <p className="mt-auto font-display text-[26px] font-bold leading-8 [font-variation-settings:'SOFT'_100]">{{ expired: 'Gia hạn để dùng tiếp', over: 'Kích hoạt để dùng tiếp', new: `Nhận ${m.freePlanDays} ngày dùng thử` }[state]}</p>
           ) : (
             <p className="mt-auto flex items-baseline gap-2">
               <span className="font-display text-[52px] font-bold leading-none tabular-nums [font-variation-settings:'SOFT'_100]">{big}</span>
@@ -78,11 +81,17 @@ function MemberCard({ m }) {
           <p className={cx('text-xs font-semibold', look.dark ? 'text-brand-soft' : 'opacity-80')}>{SUB[state](m)}</p>
         </div>
       </div>
+      {state === 'new' && (
+        <div className="mt-4 flex flex-col gap-2">
+          <TrialButton days={m.freePlanDays} />
+          <p className="text-center text-xs text-muted">Mở kế hoạch ăn {m.freePlanDays} ngày kể từ lúc kích hoạt. Sau đó quét mã trên chai sữa để dùng tiếp.</p>
+        </div>
+      )}
       {state === 'trial' && (
         <div className="mt-4 flex flex-col gap-2 rounded-xl bg-white p-4 shadow-card">
           <p className="text-sm font-bold text-primary">Kế hoạch 7 ngày của bạn</p>
           <TrialStrip free={m.freePlanDays} today={Math.max(0, m.freePlanDays - m.trialLeft)} />
-          <p className="text-xs text-muted">Từ ngày {m.freePlanDays + 1}, kế hoạch và nhắc nhở cần mã kích hoạt trên chai sữa.</p>
+          <p className="text-xs text-muted">Dùng thử đến hết {fmtDate(`${m.trialEnds}T12:00:00`)}. Sau đó kế hoạch và nhắc nhở cần mã kích hoạt trên chai sữa.</p>
         </div>
       )}
     </section>

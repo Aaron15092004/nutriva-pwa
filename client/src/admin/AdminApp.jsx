@@ -19,6 +19,7 @@ import AssistantQuality from './AssistantQuality.jsx';
 import Activation from './Activation.jsx';
 import Inventory from './Inventory.jsx';
 import PrintCodes from './PrintCodes.jsx';
+import PrintOrders from './PrintOrders.jsx';
 import './admin.css';
 
 const NAV = [
@@ -62,10 +63,11 @@ export default function AdminApp() {
   }, []);
 
   // Trang in tem: toàn màn hình, không có menu bên
-  if (/^\/admin\/activation\/[^/]+\/print$/.test(pathname))
+  if (/^\/admin\/(activation\/[^/]+|orders)\/print$/.test(pathname))
     return (
       <Routes>
         <Route path="/admin/activation/:id/print" element={<PrintCodes />} />
+        <Route path="/admin/orders/print" element={<PrintOrders />} />
       </Routes>
     );
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { User, Product, Food, Dish, Coupon, Activity, Order, Subscription, SupportRequest, Setting, MealPlan, Promo, ActivationBatch, ActivationCode, MembershipGrant, StockLot } from '../models/index.js';
+import { User, Product, Food, Dish, Coupon, Activity, Order, Subscription, SupportRequest, Setting, MealPlan, Promo, ActivationBatch, ActivationCode, MembershipGrant, StockLot, StockMove } from '../models/index.js';
 import { grantForOrder, revokeForOrder, grantDays, createBatch, prettyCode, normalizeCode, membershipConfig } from '../services/membership.js';
 import { appUrl } from '../services/mail.js';
 import { SALES_CHANNELS } from '../../../shared/nutrition.js';
@@ -17,6 +17,7 @@ import { computeDish } from '../services/dishes.js';
 import { makeCtx, cleanDays } from '../services/meal-plans.js';
 
 const router = Router();
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 router.use(requireAuth, requireAdmin);
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -111,7 +112,7 @@ router.use(
     search: ['name', 'slug'],
     filters: ['type', 'active'],
     sort: { sort: 1, createdAt: 1 },
-    writable: ['slug', 'type', 'name', 'subtitle', 'size', 'price', 'line', 'ingredients', 'extraIngredients', 'flavor', 'image', 'imageCredit', 'badge', 'description', 'nutrition', 'storage', 'steps', 'stock', 'lowStock', 'membershipDays', 'sort', 'active'],
+    writable: ['slug', 'type', 'name', 'subtitle', 'size', 'price', 'line', 'ingredients', 'extraIngredients', 'flavor', 'image', 'imageCredit', 'badge', 'description', 'nutrition', 'storage', 'steps', 'lowStock', 'membershipDays', 'sort', 'active'], // tồn kho chỉ đổi qua Kho hàng (có phiếu xuất nhập)
   }),
 );
 router.use(
@@ -210,18 +211,56 @@ router.get(
   '/orders',
   ah(async (req, res) => {
     const { page: p, limit } = page(req);
-    const where = {};
+    const today = nowInTz().date;
+    const tomorrow = addDays(today, 1);
+    // Hàng chờ xử lý (chip lọc nhanh ở trang Đơn hàng)
+    const QUEUES = {
+      todo: { status: { $in: ['confirmed', 'preparing'] } },
+      shipping: { status: 'shipping' },
+      bank: { payment: 'bank', paymentStatus: 'unpaid', status: { $ne: 'cancelled' } },
+      today: { 'delivery.date': today, status: { $nin: ['cancelled', 'done'] } },
+      tomorrow: { 'delivery.date': tomorrow, status: { $nin: ['cancelled', 'done'] } },
+    };
+    const where = { ...(QUEUES[req.query.queue] ?? {}) };
     for (const f of ['status', 'paymentStatus', 'payment', 'source']) if (req.query[f]) where[f] = String(req.query[f]);
+    if (DATE_RE.test(req.query.date ?? '')) where['delivery.date'] = String(req.query.date);
     const q = (req.query.q ?? '').toString().trim();
     if (q) {
       const re = { $regex: escapeRe(q), $options: 'i' };
       where.$or = [{ code: re }, { 'address.phone': re }, { 'address.name': re }];
     }
-    const [items, total] = await Promise.all([
-      Order.find(where).sort({ createdAt: -1 }).skip((p - 1) * limit).limit(limit).populate('user', 'name email').lean(),
+    // Hàng chờ: giao sớm nhất trước; còn lại: mới đặt trước
+    const sort = req.query.queue && req.query.queue !== 'bank' ? { 'delivery.date': 1, createdAt: 1 } : { createdAt: -1 };
+    const [items, total, ...counts] = await Promise.all([
+      Order.find(where).sort(sort).skip((p - 1) * limit).limit(limit).populate('user', 'name email').lean(),
       Order.countDocuments(where),
+      ...Object.values(QUEUES).map((w) => Order.countDocuments(w)),
     ]);
-    res.json({ items, total, page: p, limit });
+    res.json({ items, total, page: p, limit, counts: Object.fromEntries(Object.keys(QUEUES).map((k, i) => [k, counts[i]])), today, tomorrow });
+  }),
+);
+
+// Soạn hàng theo ngày giao: tổng số chai / gói từng loại cần chuẩn bị + danh sách đơn (in phiếu soạn & phiếu giao)
+router.get(
+  '/orders/prep',
+  ah(async (req, res) => {
+    const date = DATE_RE.test(req.query.date ?? '') ? String(req.query.date) : addDays(nowInTz().date, 1);
+    const orders = await Order.find({ 'delivery.date': date, status: { $in: ['confirmed', 'preparing', 'shipping'] } })
+      .sort({ 'delivery.slot': 1, createdAt: 1 })
+      .populate('user', 'name email')
+      .lean();
+    const lines = new Map();
+    for (const o of orders) {
+      for (const it of o.items) {
+        const key = `${it.slug}|${it.sweetness ?? ''}`;
+        const l = lines.get(key) ?? { slug: it.slug, type: it.type, name: it.name, sweetness: it.sweetness ?? null, qty: 0, orders: 0 };
+        l.qty += it.qty;
+        l.orders += 1;
+        lines.set(key, l);
+      }
+    }
+    const items = [...lines.values()].sort((a, b) => a.type.localeCompare(b.type) || b.qty - a.qty);
+    res.json({ date, items, orders, totals: { orders: orders.length, units: items.reduce((n, l) => n + l.qty, 0), home: orders.filter((o) => o.delivery?.method === 'home').length } });
   }),
 );
 
@@ -230,7 +269,9 @@ router.get(
   ah(async (req, res) => {
     const item = await Order.findById(req.params.id).populate('user', 'name email').lean();
     if (!item) throw new HttpError(404, 'Không tìm thấy đơn hàng');
-    res.json({ item });
+    // Lô hàng đã xuất cho đơn (mã lô, hạn dùng) → soạn đúng lô, truy vết khi có khiếu nại
+    const moves = await StockMove.find({ order: item._id }).sort({ createdAt: 1 }).populate('product', 'name type').populate('lots.lot', 'code expiryDate').lean();
+    res.json({ item, moves });
   }),
 );
 
@@ -244,7 +285,7 @@ router.patch(
     const prev = order.status;
     const moving = status && status !== prev;
     if (moving && !canMove(prev, status)) {
-      throw new HttpError(400, prev === 'cancelled' ? 'Đơn đã hủy, không thể mở lại — hãy tạo đơn mới' : 'Trạng thái không hợp lệ');
+      throw new HttpError(400, prev === 'cancelled' ? 'Đơn đã hủy, không thể mở lại — hãy tạo đơn mới' : prev === 'done' ? 'Đơn đã hoàn tất — chỉ có thể hủy (hoàn tiền)' : 'Chỉ lùi được 1 bước so với trạng thái hiện tại');
     }
     if (paymentStatus !== undefined && !PAYMENT_STATUSES.includes(paymentStatus)) throw new HttpError(400, 'Trạng thái thanh toán không hợp lệ');
 
@@ -417,14 +458,27 @@ router.get(
 router.post(
   '/activation',
   ah(async (req, res) => {
-    const { name, productSlug, days, quantity, expiresAt, note } = req.body ?? {};
+    const { name, productSlug, days, quantity, packSize, unit, expiresAt, note } = req.body ?? {};
     const n = Math.floor(Number(quantity));
     const d = Math.floor(Number(days));
-    if (!String(name ?? '').trim()) throw new HttpError(400, 'Đặt tên lô mã (vd: Mạch Nhiên — lô 30/10)');
-    if (!(n >= 1 && n <= 20000)) throw new HttpError(400, 'Số lượng mã từ 1 đến 20.000');
-    if (!(d >= 1 && d <= 365)) throw new HttpError(400, 'Số ngày mỗi mã từ 1 đến 365');
-    const batch = await createBatch({ name: String(name).trim().slice(0, 80), productSlug: productSlug || undefined, days: d, quantity: n, expiresAt: expiresAt ? new Date(expiresAt) : null, note: String(note ?? '').slice(0, 200), createdBy: req.user.email });
-    await audit(req, 'activation.create', { entity: 'ActivationBatch', entityId: batch._id, summary: `${batch.name}: ${n} mã × ${d} ngày` });
+    const pack = Math.floor(Number(packSize ?? 1));
+    if (!String(name ?? '').trim()) throw new HttpError(400, 'Đặt tên lô mã (vd: Mạch Nhiên — lô 30/10)', { name: 'Bắt buộc' });
+    if (!(n >= 1 && n <= 20000)) throw new HttpError(400, 'Số lượng mã từ 1 đến 20.000', { quantity: 'Từ 1 đến 20.000' });
+    if (!(pack >= 1 && pack <= 1000)) throw new HttpError(400, 'Quy cách: 1 mã cho 1 đến 1.000 đơn vị', { packSize: 'Từ 1 đến 1.000' });
+    if (!(d >= 1 && d <= 365)) throw new HttpError(400, 'Số ngày mỗi mã từ 1 đến 365', { days: 'Từ 1 đến 365' });
+    if (expiresAt && Number.isNaN(Date.parse(expiresAt))) throw new HttpError(400, 'Hạn kích hoạt không hợp lệ', { expiresAt: 'Ngày không hợp lệ' });
+    const batch = await createBatch({
+      name: String(name).trim().slice(0, 80),
+      productSlug: productSlug || undefined,
+      days: d,
+      quantity: n,
+      packSize: pack,
+      unit: String(unit || 'chai').trim().slice(0, 20),
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      note: String(note ?? '').slice(0, 200),
+      createdBy: req.user.email,
+    });
+    await audit(req, 'activation.create', { entity: 'ActivationBatch', entityId: batch._id, summary: `${batch.name}: ${n} mã × ${d} ngày${pack > 1 ? ` (1 mã / ${pack} ${batch.unit})` : ''}` });
     res.status(201).json({ item: batch });
   }),
 );

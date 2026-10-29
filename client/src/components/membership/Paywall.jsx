@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock, QrCode, ShoppingBag, CalendarCheck, Check, Sparkles } from 'lucide-react';
+import { Lock, QrCode, ShoppingBag, Check, Sparkles } from 'lucide-react';
 import { useApi } from '../../lib/useApi.js';
+import { useMembership, memberState, useStartTrial } from '../../lib/membership.js';
+import { useToast } from '../../context/ToastContext.jsx';
 import { track } from '../../lib/track.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { Sheet } from '../ui.jsx';
+import { Sheet, ErrorNote } from '../ui.jsx';
 import { PrimaryButton } from '../ds/form.jsx';
 import { cx } from '../ds/index.jsx';
 import { BottleTrio } from '../brand/MilkArt.jsx';
@@ -22,8 +24,8 @@ export function useMemberConfig() {
 // Dòng thời gian dùng thử: hôm nay → khi hết dùng thử → cách gia hạn
 function TrialTimeline({ cfg }) {
   const steps = [
-    { icon: Sparkles, on: true, title: 'Hôm nay', text: `Mở kế hoạch ăn ngày 1–${cfg.freePlanDays}, theo dõi bữa ăn, nước và vận động.` },
-    { icon: Lock, title: `Từ ngày ${cfg.freePlanDays + 1}`, text: 'Kế hoạch đầy đủ và nhắc nhở cần mã kích hoạt.' },
+    { icon: Sparkles, on: true, title: 'Bấm “Kích hoạt dùng thử”', text: `Mở kế hoạch ăn ${cfg.freePlanDays} ngày kể từ hôm nay — mỗi tài khoản 1 lần.` },
+    { icon: Lock, title: `Sau ${cfg.freePlanDays} ngày`, text: 'Kế hoạch ăn và nhắc nhở cần mã kích hoạt trên chai sữa.' },
     { icon: QrCode, title: 'Mỗi chai sữa hạt', text: `Quét mã trên chai: +${cfg.daysPerBottle} ngày • gói hạt tự nấu: +${cfg.daysPerSet} ngày, cộng dồn.` },
   ];
   return (
@@ -77,16 +79,40 @@ function Header({ eyebrow, title, text }) {
   );
 }
 
+// Nút "Kích hoạt dùng thử N ngày" dùng chung (sheet, thẻ khóa, banner, trang Gói)
+export function TrialButton({ days, onDone, className = 'w-full', label }) {
+  const toast = useToast();
+  const { start, busy, error } = useStartTrial();
+  return (
+    <>
+      <PrimaryButton
+        className={className}
+        loading={busy}
+        onClick={async () => {
+          try {
+            await start();
+            toast(`Đã mở kế hoạch ăn ${days} ngày dùng thử`);
+            onDone?.();
+          } catch {
+            /* lỗi hiện bên dưới */
+          }
+        }}
+      >
+        <Sparkles size={20} aria-hidden="true" /> {label ?? `Kích hoạt dùng thử ${days} ngày`}
+      </PrimaryButton>
+      <ErrorNote error={error} />
+    </>
+  );
+}
+
 function WelcomeBody({ cfg, go }) {
   const { user } = useAuth();
   return (
     <div className="flex flex-col gap-6 pt-2">
-      <Header eyebrow="Dùng thử miễn phí" title={`Chào ${user?.name ?? 'bạn'}, bạn có ${cfg.freePlanDays} ngày dùng thử`} text="Mỗi chai sữa hạt NUTRIVA có một mã kích hoạt — uống sữa là app luôn mở." />
+      <Header eyebrow="Quà cho tài khoản mới" title={`Chào ${user?.name ?? 'bạn'}, nhận ${cfg.freePlanDays} ngày dùng thử`} text="Kế hoạch ăn theo calo & khẩu vị của bạn. Mỗi chai sữa hạt NUTRIVA có mã kích hoạt — uống sữa là app luôn mở." />
       <TrialTimeline cfg={cfg} />
       <div className="flex flex-col gap-1">
-        <PrimaryButton className="w-full" onClick={() => go('/plan')}>
-          <CalendarCheck size={20} aria-hidden="true" /> Xem kế hoạch của tôi
-        </PrimaryButton>
+        <TrialButton days={cfg.freePlanDays} onDone={() => go('/plan')} />
         <button type="button" onClick={() => go('/me/membership?scan=1')} className="inline-flex h-12 items-center justify-center gap-2 rounded-full text-sm font-bold text-brand-dark hover:bg-brand-light">
           <QrCode size={18} aria-hidden="true" /> Tôi đã có mã trên chai
         </button>
@@ -95,7 +121,7 @@ function WelcomeBody({ cfg, go }) {
   );
 }
 
-function PaywallBody({ cfg, message, go }) {
+function PaywallBody({ cfg, message, go, canTrial }) {
   const perks = ['Kế hoạch ăn trọn 7 ngày, tự đổi món theo khẩu vị', 'Nhắc uống nước, uống sữa, vận động đúng giờ', 'Thực đơn tính theo calo & mục tiêu của bạn'];
   return (
     <div className="flex flex-col gap-6 pt-2">
@@ -109,12 +135,19 @@ function PaywallBody({ cfg, message, go }) {
         ))}
       </ul>
       <div className="flex flex-col gap-2">
-        <PrimaryButton className="w-full" onClick={() => go('/me/membership?scan=1')}>
+        {canTrial && <TrialButton days={cfg.freePlanDays} label={`Dùng thử miễn phí ${cfg.freePlanDays} ngày`} onDone={() => go('/plan')} />}
+        <PrimaryButton variant={canTrial ? 'outline' : 'primary'} className="w-full" onClick={() => go('/me/membership?scan=1')}>
           <QrCode size={20} aria-hidden="true" /> Quét mã trên chai
         </PrimaryButton>
-        <PrimaryButton variant="outline" className="w-full" onClick={() => go('/shop?tab=milk')}>
-          <ShoppingBag size={20} aria-hidden="true" /> Mua sữa hạt trong app
-        </PrimaryButton>
+        {canTrial ? (
+          <button type="button" onClick={() => go('/shop?tab=milk')} className="inline-flex h-11 items-center justify-center gap-2 rounded-full text-sm font-bold text-brand-dark hover:bg-brand-light">
+            <ShoppingBag size={18} aria-hidden="true" /> Mua sữa hạt trong app
+          </button>
+        ) : (
+          <PrimaryButton variant="outline" className="w-full" onClick={() => go('/shop?tab=milk')}>
+            <ShoppingBag size={20} aria-hidden="true" /> Mua sữa hạt trong app
+          </PrimaryButton>
+        )}
       </div>
       <div className="flex flex-col items-center gap-2">
         <p className="text-xs font-semibold text-muted">Hoặc mua tại gian hàng chính thức — mã nằm sẵn trên chai</p>
@@ -130,6 +163,7 @@ export default function Paywall() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const cfg = useMemberConfig();
+  const { m } = useMembership();
   const [state, setState] = useState(null); // { message } | { welcome: true }
 
   useEffect(() => {
@@ -143,7 +177,7 @@ export default function Paywall() {
 
   useEffect(() => {
     if (!user?.createdAt || Date.now() - new Date(user.createdAt) > 24 * 3600 * 1000) return undefined;
-    if (user.membership?.until && new Date(user.membership.until) > new Date()) return undefined;
+    if (user.membership?.until || user.membership?.trialStart) return undefined; // đã có gói / đã dùng thử
     try {
       if (localStorage.getItem(WELCOME_KEY) === user.id) return undefined;
       localStorage.setItem(WELCOME_KEY, user.id);
@@ -152,7 +186,7 @@ export default function Paywall() {
     }
     const t = setTimeout(() => setState({ welcome: true }), 1500);
     return () => clearTimeout(t);
-  }, [user?.id, user?.createdAt, user?.membership?.until]);
+  }, [user?.id, user?.createdAt, user?.membership?.until, user?.membership?.trialStart]);
 
   const close = () => setState(null);
   const go = (to) => {
@@ -170,7 +204,7 @@ export default function Paywall() {
       heroH={HERO.total}
       heroOverlap={HERO.overlap}
     >
-      {state && (welcome ? <WelcomeBody cfg={cfg} go={go} /> : <PaywallBody cfg={cfg} message={state.message} go={go} />)}
+      {state && (welcome ? <WelcomeBody cfg={cfg} go={go} /> : <PaywallBody cfg={cfg} message={state.message} go={go} canTrial={memberState(m) === 'new'} />)}
     </Sheet>
   );
 }
@@ -185,6 +219,33 @@ const PREVIEW = [
 // Thay cho nội dung bị khóa (ngày kế hoạch, nhắc nhở…). compact: 1 dòng như thẻ theo dõi ở trang chủ.
 export function LockedCard({ title = 'Nội dung dành cho thành viên', text, compact = false }) {
   const cfg = useMemberConfig();
+  const { m } = useMembership();
+  const canTrial = memberState(m) === 'new';
+  // Tài khoản mới chưa dùng thử: mời kích hoạt dùng thử thay vì quét mã
+  if (canTrial && !compact)
+    return (
+      <section className="relative overflow-hidden rounded-xl bg-white shadow-card">
+        <div className="flex select-none flex-col gap-4 p-4 opacity-70 blur-[3px]" aria-hidden="true">
+          {PREVIEW.map((r) => (
+            <div key={r.c} className="flex items-center gap-4">
+              <span className={cx('size-14 shrink-0 rounded-lg', r.c)} />
+              <span className="flex flex-1 flex-col gap-2">
+                <span className={cx('h-3 rounded-full bg-divider', r.w)} />
+                <span className="h-3 w-1/3 rounded-full bg-border" />
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-white/40 via-white/90 to-white px-6 text-center">
+          <span className="grid size-12 place-items-center rounded-full bg-brand-dark text-white shadow-float" aria-hidden="true">
+            <Sparkles size={22} />
+          </span>
+          <p className="text-base font-bold leading-6 text-primary">Kế hoạch ăn đang chờ bạn mở</p>
+          <p className="text-sm text-secondary">Kích hoạt dùng thử miễn phí {cfg.freePlanDays} ngày — mỗi tài khoản 1 lần.</p>
+          <TrialButton days={cfg.freePlanDays} className="mt-1 h-11 px-6 text-sm" />
+        </div>
+      </section>
+    );
   if (compact)
     return (
       <section className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-card">
@@ -196,7 +257,7 @@ export function LockedCard({ title = 'Nội dung dành cho thành viên', text, 
           {text && <p className="line-clamp-2 text-xs text-muted">{text}</p>}
         </div>
         <Link to="/me/membership" className="inline-flex h-10 shrink-0 items-center rounded-full bg-brand-dark px-4 text-sm font-bold text-white transition active:scale-95">
-          Mở khóa
+          {canTrial ? 'Dùng thử' : 'Mở khóa'}
         </Link>
       </section>
     );

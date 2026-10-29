@@ -127,6 +127,15 @@ export const MIGRATIONS = [
       return `${plans} kế hoạch, ${dishes} món đổi ảnh`;
     },
   },
+  {
+    name: '2026-10-31-trial-opt-in',
+    // Dùng thử chuyển sang "tự bấm kích hoạt". Tài khoản đã có trước đó: coi như bắt đầu dùng thử từ ngày đăng ký
+    // (giữ nguyên quyền như trước); tài khoản tạo sau migration này phải tự kích hoạt.
+    async up() {
+      const r = await User.updateMany({ 'membership.trialStart': { $in: [null] }, role: { $ne: 'admin' } }, [{ $set: { 'membership.trialStart': '$createdAt' } }]);
+      return `${r.modifiedCount} tài khoản cũ được gán ngày bắt đầu dùng thử = ngày đăng ký`;
+    },
+  },
 ];
 
 export async function runMigrations() {

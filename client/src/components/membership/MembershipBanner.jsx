@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Lock, Clock } from 'lucide-react';
+import { Lock, Clock, Sparkles } from 'lucide-react';
 import { useMembership, memberState, fmtDate } from '../../lib/membership.js';
 import { cx } from '../ds/index.jsx';
 import TrialStrip from './TrialStrip.jsx';
+import { TrialButton } from './Paywall.jsx';
 
 // Trạng thái gói ở trang chủ: đang dùng thử (kèm dải 7 ngày) / sắp hết hạn / hết hạn. Đang có gói và còn lâu → không hiện.
 export default function MembershipBanner() {
@@ -10,6 +11,23 @@ export default function MembershipBanner() {
   if (!m?.enabled || (m.member && !m.expiring)) return null;
   if (m.active && !m.member) return null; // admin hoặc tính năng khóa đang tắt
   const state = memberState(m);
+
+  // Tài khoản mới: phải tự bấm kích hoạt dùng thử mới mở kế hoạch
+  if (state === 'new')
+    return (
+      <section className="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-card" aria-label="Dùng thử miễn phí">
+        <span className="flex items-center gap-4">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-light text-brand-dark" aria-hidden="true">
+            <Sparkles size={20} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-bold leading-6 text-primary">Nhận {m.freePlanDays} ngày dùng thử miễn phí</span>
+            <span className="block text-xs text-muted">Mở kế hoạch ăn theo calo & khẩu vị của bạn — mỗi tài khoản 1 lần.</span>
+          </span>
+        </span>
+        <TrialButton days={m.freePlanDays} className="h-12 w-full text-sm" />
+      </section>
+    );
 
   if (state === 'trial') {
     const today = Math.max(0, m.freePlanDays - m.trialLeft);

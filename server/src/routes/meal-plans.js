@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { MealPlan } from '../models/index.js';
 import { loadAllFoods, loadAllDishes } from '../services/catalog.js';
 import { ah, requireAuth, HttpError, MembershipRequired } from '../middleware/auth.js';
-import { hasAccess, membershipConfig } from '../services/membership.js';
+import { hasAccess, membershipConfig, trialActive } from '../services/membership.js';
 import { publicUser } from './auth.js';
 import { makeCtx, planSummary, planDetail, resolveDay, ingredientsFor, planDayIndex, cleanDays } from '../services/meal-plans.js';
 
@@ -12,9 +12,11 @@ const router = Router();
 router.use(requireAuth);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-// Chưa kích hoạt gói: chỉ xem được N ngày đầu của kế hoạch 7 ngày (N = freePlanDays)
+// Có gói: xem trọn kế hoạch. Đang dùng thử: N ngày đầu (N = freePlanDays). Chưa kích hoạt / hết dùng thử: khóa toàn bộ.
 async function freeDays(user) {
-  return (await hasAccess(user)) ? Infinity : (await membershipConfig()).freePlanDays;
+  if (await hasAccess(user)) return Infinity;
+  const cfg = await membershipConfig();
+  return trialActive(user, cfg) ? cfg.freePlanDays : 0;
 }
 const lockDays = (detail, n) =>
   n === Infinity ? detail : { ...detail, lockedFrom: n, days: detail.days.map((d) => (d.index < n ? d : { index: d.index, locked: true, meals: [], kcal: 0, protein: 0, carb: 0, fat: 0 })), raw: undefined };

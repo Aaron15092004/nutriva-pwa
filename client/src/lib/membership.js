@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useApi, invalidate } from './useApi.js';
+import { api } from './api.js';
 
 // Trạng thái gói sử dụng (dùng chung cache /membership)
 export function useMembership() {
@@ -14,7 +16,35 @@ export const refreshLocked = () => {
   for (const prefix of ['/membership', '/plan', '/meal-plans', '/reminders']) invalidate(prefix);
 };
 
-// member | expired (từng có gói) | trial (còn ngày dùng thử) | over (hết dùng thử, chưa từng kích hoạt)
-export const memberState = (m) => (m?.member ? 'member' : m?.until ? 'expired' : m?.trialLeft > 0 ? 'trial' : 'over');
+// member | expired (từng có gói) | trial (đang dùng thử) | new (chưa kích hoạt dùng thử) | over (hết dùng thử)
+export const memberState = (m) => {
+  if (m?.member) return 'member';
+  if (m?.until) return 'expired';
+  if (m?.trialLeft > 0) return 'trial';
+  if (m?.trialAvailable) return 'new';
+  return 'over';
+};
+
+// Nút "Kích hoạt dùng thử": gọi server (mỗi tài khoản 1 lần) rồi mở khóa kế hoạch ngay
+export function useStartTrial() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const start = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const r = await api.post('/membership/trial');
+      refreshLocked();
+      window.dispatchEvent(new CustomEvent('nutriva:trial', { detail: r }));
+      return r;
+    } catch (e) {
+      setError(e.message);
+      throw e;
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { start, busy, error };
+}
 
 export const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');

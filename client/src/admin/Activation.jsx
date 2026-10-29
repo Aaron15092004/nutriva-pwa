@@ -1,33 +1,77 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Download, Printer, Search, Ban, Power } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Button, ErrorNote, Skeleton } from '../components/ui.jsx';
-import { Drawer, Field, dt, downloadFile, useDebounced } from './kit.jsx';
+import { Drawer, Field, NumInput, numError, dt, downloadFile, useDebounced } from './kit.jsx';
+import { productTitle } from '@shared/nutrition.js';
 import { StatTile } from './charts.jsx';
 
 const n = (v) => (v ?? 0).toLocaleString('vi-VN');
 
-function CreateDrawer({ open, onClose, onCreated, products, config }) {
+// Quy cách in mã: 1 mã cho mỗi chai / gói, hoặc 1 mã cho cả lốc / thùng (số ngày = số đơn vị × ngày mỗi đơn vị)
+export const PACKS = [
+  { size: 1, label: 'Từng chai / gói' },
+  { size: 4, label: 'Lốc 4' },
+  { size: 6, label: 'Lốc 6' },
+  { size: 12, label: 'Thùng 12' },
+  { size: 24, label: 'Thùng 24' },
+];
+export const packText = (b) => (b.packSize > 1 ? `1 mã / ${b.packSize} ${b.unit ?? 'chai'}` : `1 mã / ${b.unit ?? 'chai'}`);
+const unitOf = (p) => (p?.type === 'diy' ? 'gói' : 'chai');
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+function CreateDrawer({ open, onClose, onCreated, products, config, initialSlug }) {
   const toast = useToast();
-  const [f, setF] = useState({ name: '', productSlug: '', quantity: 100, days: config?.daysPerBottle ?? 2, expiresAt: '', note: '' });
+  const perUnit = (p) => (p ? p.membershipDays ?? (p.type === 'diy' ? config?.daysPerSet : config?.daysPerBottle) ?? 2 : config?.daysPerBottle ?? 2);
+  const autoName = (p, pack) => (p ? `${productTitle(p)}${pack > 1 ? ` • lốc ${pack}` : ''} — ${new Date().toLocaleDateString('vi-VN')}` : '');
+  const start = products.find((x) => x.slug === initialSlug);
+  const [f, setF] = useState(() => ({ name: autoName(start, 1), productSlug: start?.slug ?? '', packSize: 1, quantity: 100, days: perUnit(start), expiresAt: '', note: '' }));
+  const [edited, setEdited] = useState({ name: false, days: false });
+  const [custom, setCustom] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const set = (patch) => setF((x) => ({ ...x, ...patch }));
-  const pickProduct = (slug) => {
-    const p = products.find((x) => x.slug === slug);
-    const days = p ? (p.membershipDays ?? (p.type === 'diy' ? config?.daysPerSet : config?.daysPerBottle) ?? f.days) : f.days;
-    set({ productSlug: slug, days, name: f.name || (p ? `${p.type === 'diy' ? 'Gói hạt' : 'Sữa'} ${p.name} — ${new Date().toLocaleDateString('vi-VN')}` : '') });
+  const [server, setServer] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const product = products.find((x) => x.slug === f.productSlug);
+  const unit = unitOf(product);
+
+  // Đổi sản phẩm / quy cách → tự tính lại số ngày & tên lô (trừ khi admin đã tự sửa)
+  const recompute = (patch) =>
+    setF((x) => {
+      const next = { ...x, ...patch };
+      const p = products.find((y) => y.slug === next.productSlug);
+      if (!edited.days) next.days = Math.min(365, perUnit(p) * (next.packSize || 1));
+      if (!edited.name) next.name = autoName(p, next.packSize || 1);
+      return next;
+    });
+  const set = (patch) => {
+    setF((x) => ({ ...x, ...patch }));
+    setServer((s) => Object.fromEntries(Object.entries(s).filter(([k]) => !(k in patch))));
   };
+
+  const errors = {
+    name: !f.name.trim() ? 'Bắt buộc nhập' : '',
+    packSize: numError(f.packSize, { required: true, integer: true, min: 1, max: 1000 }),
+    quantity: numError(f.quantity, { required: true, integer: true, min: 1, max: 20000 }),
+    days: numError(f.days, { required: true, integer: true, min: 1, max: 365 }),
+    expiresAt: f.expiresAt && f.expiresAt < today() ? 'Ngày đã qua' : '',
+  };
+  const err = (k) => server[k] || ((submitted || (k !== 'name' && f[k] != null)) && errors[k]) || '';
+  const valid = !Object.values(errors).some(Boolean);
+
   const submit = async () => {
+    setSubmitted(true);
+    if (!valid) return setError('Kiểm tra lại các ô được đánh dấu đỏ');
     setBusy(true);
     setError('');
     try {
-      const { item } = await api.post('/admin/activation', { ...f, expiresAt: f.expiresAt ? new Date(`${f.expiresAt}T23:59:59+07:00`).toISOString() : null });
+      const { item } = await api.post('/admin/activation', { ...f, unit, expiresAt: f.expiresAt ? new Date(`${f.expiresAt}T23:59:59+07:00`).toISOString() : null });
       toast(`Đã tạo ${item.quantity} mã`);
       onCreated(item);
     } catch (e) {
+      if (e.data?.fields) setServer(e.data.fields);
       setError(e.message);
     } finally {
       setBusy(false);
@@ -40,25 +84,46 @@ function CreateDrawer({ open, onClose, onCreated, products, config }) {
       onClose={onClose}
       footer={
         <Button className="btn-primary btn-sm" loading={busy} onClick={submit}>
-          <Plus size={16} /> Tạo mã
+          <Plus size={16} /> Tạo {n(f.quantity ?? 0)} mã
         </Button>
       }
     >
-      <p className="small muted">Mỗi mã in thành 1 tem (QR + mã 10 ký tự) dán lên 1 chai / gói. Người mua quét hoặc nhập mã trong app để cộng ngày sử dụng. Mẹo: tạo mã khi nhập kho (trang Kho hàng) để mã gắn với lô hàng.</p>
+      <p className="small muted">Mỗi mã in thành 1 tem (QR + mã 10 ký tự). Dán tem lên từng chai, hoặc 1 tem cho cả lốc / thùng. Người mua quét hoặc nhập mã trong app để cộng ngày sử dụng. Mẹo: tạo mã ngay khi nhập kho (trang Kho hàng) để mã gắn với lô hàng.</p>
       <div className="a-form">
-        <Field label="Sản phẩm (tùy chọn)" htmlFor="ab-p">
-          <select id="ab-p" className="a-select" value={f.productSlug} onChange={(e) => pickProduct(e.target.value)}>
+        <Field label="Sản phẩm" htmlFor="ab-p" full hint="Để trống nếu là mã quà tặng / khuyến mãi không gắn sản phẩm">
+          <select id="ab-p" className="a-select" value={f.productSlug} onChange={(e) => recompute({ productSlug: e.target.value })}>
             <option value="">— Không gắn sản phẩm —</option>
             {products.filter((p) => p.type !== 'treat').map((p) => (
-              <option key={p.slug} value={p.slug}>{p.type === 'diy' ? 'Gói hạt' : 'Sữa'} {p.name}</option>
+              <option key={p.slug} value={p.slug}>{productTitle(p)}</option>
             ))}
           </select>
         </Field>
-        <Field label="Tên lô mã" htmlFor="ab-n"><input id="ab-n" className="a-input" maxLength={80} value={f.name} onChange={(e) => set({ name: e.target.value })} /></Field>
-        <Field label="Số lượng mã" htmlFor="ab-q" hint="Tối đa 20.000 mã / lô"><input id="ab-q" className="a-input" type="number" min="1" max="20000" value={f.quantity} onChange={(e) => set({ quantity: Number(e.target.value) })} /></Field>
-        <Field label="Số ngày mỗi mã" htmlFor="ab-d" hint={`Mặc định: chai ${config?.daysPerBottle} ngày • gói hạt ${config?.daysPerSet} ngày`}><input id="ab-d" className="a-input" type="number" min="1" max="365" value={f.days} onChange={(e) => set({ days: Number(e.target.value) })} /></Field>
-        <Field label="Hạn kích hoạt (tùy chọn)" htmlFor="ab-e" hint="Sau ngày này mã không còn dùng được"><input id="ab-e" className="a-input" type="date" value={f.expiresAt} onChange={(e) => set({ expiresAt: e.target.value })} /></Field>
-        <Field label="Ghi chú" htmlFor="ab-no"><input id="ab-no" className="a-input" maxLength={200} value={f.note} onChange={(e) => set({ note: e.target.value })} /></Field>
+        <Field label="Quy cách: 1 mã dán cho" full error={err('packSize')}>
+          <div className="a-chips" role="group" aria-label="Quy cách mã">
+            {PACKS.map((p) => (
+              <button key={p.size} type="button" aria-pressed={!custom && f.packSize === p.size} onClick={() => { setCustom(false); recompute({ packSize: p.size }); }}>
+                {p.size === 1 ? `Từng ${unit}` : `${p.label} ${unit}`}
+              </button>
+            ))}
+            <button type="button" aria-pressed={custom} onClick={() => setCustom(true)}>Số khác…</button>
+            {custom && <NumInput integer suffix={unit} style={{ width: 130 }} aria-label="Số đơn vị mỗi mã" value={f.packSize} invalid={Boolean(errors.packSize)} onChange={(v) => recompute({ packSize: v })} />}
+          </div>
+        </Field>
+        <Field label="Số lượng mã (tem)" htmlFor="ab-q" required error={err('quantity')} hint={f.quantity ? `Đủ cho ${n(f.quantity * (f.packSize || 1))} ${unit} • tối đa 20.000 mã / lô` : 'Tối đa 20.000 mã / lô'}>
+          <NumInput id="ab-q" integer suffix="mã" value={f.quantity} invalid={Boolean(err('quantity'))} onChange={(quantity) => set({ quantity })} />
+        </Field>
+        <Field label="Số ngày mỗi mã" htmlFor="ab-d" required error={err('days')} hint={edited.days ? 'Đã sửa tay' : `Tự tính: ${perUnit(product)} ngày × ${f.packSize || 1} ${unit}`}>
+          <NumInput id="ab-d" integer suffix="ngày" value={f.days} invalid={Boolean(err('days'))} onChange={(days) => { setEdited((x) => ({ ...x, days: true })); set({ days }); }} />
+        </Field>
+        <Field label="Tên lô mã" htmlFor="ab-n" required error={err('name')}>
+          <input id="ab-n" className="a-input" maxLength={80} value={f.name} aria-invalid={Boolean(err('name')) || undefined} onChange={(e) => { setEdited((x) => ({ ...x, name: true })); set({ name: e.target.value }); }} />
+        </Field>
+        <Field label="Hạn kích hoạt (tùy chọn)" htmlFor="ab-e" error={err('expiresAt')} hint="Sau ngày này mã không dùng được nữa">
+          <input id="ab-e" className="a-input" type="date" min={today()} value={f.expiresAt} onChange={(e) => set({ expiresAt: e.target.value })} />
+        </Field>
+        <Field label="Ghi chú" htmlFor="ab-no" full>
+          <input id="ab-no" className="a-input" maxLength={200} value={f.note} onChange={(e) => set({ note: e.target.value })} />
+        </Field>
       </div>
       <ErrorNote error={error} />
     </Drawer>
@@ -114,7 +179,7 @@ function BatchDrawer({ batch, onClose, onChanged }) {
       }
     >
       <dl className="a-kv">
-        <dt>Mỗi mã</dt><dd>+{batch.days} ngày sử dụng</dd>
+        <dt>Mỗi mã</dt><dd>+{batch.days} ngày sử dụng • {packText(batch)}</dd>
         <dt>Sản phẩm</dt><dd>{batch.productSlug ?? '—'}{batch.lot ? ` • lô ${batch.lot.code}` : ''}</dd>
         <dt>Đã dùng</dt><dd>{n(batch.used)} / {n(batch.quantity)}{batch.void ? ` • vô hiệu ${n(batch.void)}` : ''}</dd>
         <dt>Hạn kích hoạt</dt><dd>{batch.expiresAt ? dt(batch.expiresAt) : 'Không giới hạn'}</dd>
@@ -164,6 +229,8 @@ export default function Activation() {
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(null);
   const [products, setProducts] = useState([]);
+  const [params, setParams] = useSearchParams();
+  const initialSlug = params.get('product');
   const [lookup, setLookup] = useState('');
   const [found, setFound] = useState(null);
   const load = () => api.get('/admin/activation').then(setData).catch((e) => setError(e.message));
@@ -171,6 +238,10 @@ export default function Activation() {
     load();
     api.get('/admin/products?limit=200').then((d) => setProducts(d.items)).catch(() => {});
   }, []);
+  // Mở từ nút QR ở trang Sản phẩm (?product=slug) → mở sẵn form tạo mã cho sản phẩm đó
+  useEffect(() => {
+    if (initialSlug && products.length && data) setCreating(true);
+  }, [initialSlug, products.length, data]);
   const doLookup = async (e) => {
     e.preventDefault();
     setFound(null);
@@ -216,11 +287,12 @@ export default function Activation() {
           </form>
           <div className="a-table-wrap">
             <table className="a-table">
-              <thead><tr><th>Lô mã</th><th className="num">Ngày / mã</th><th className="num">Đã dùng</th><th>Tạo lúc</th><th>Hạn kích hoạt</th><th>Trạng thái</th></tr></thead>
+              <thead><tr><th>Lô mã</th><th>Quy cách</th><th className="num">Ngày / mã</th><th className="num">Đã dùng</th><th>Tạo lúc</th><th>Hạn kích hoạt</th><th>Trạng thái</th></tr></thead>
               <tbody>
                 {data.items.map((b) => (
                   <tr key={b._id} onClick={() => setOpen(b)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setOpen(b)}>
                     <td><b>{b.name}</b><div className="xs muted">{b.productSlug ?? 'Không gắn sản phẩm'}{b.lot ? ` • lô ${b.lot.code}` : ''}</div></td>
+                    <td className="small">{packText(b)}</td>
                     <td className="num">+{b.days}</td>
                     <td className="num">
                       {n(b.used)} / {n(b.quantity)}
@@ -242,10 +314,16 @@ export default function Activation() {
           open
           products={products}
           config={data?.config}
-          onClose={() => setCreating(false)}
-          onCreated={() => {
+          initialSlug={initialSlug}
+          onClose={() => {
             setCreating(false);
+            if (initialSlug) setParams({}, { replace: true });
+          }}
+          onCreated={(item) => {
+            setCreating(false);
+            if (initialSlug) setParams({}, { replace: true });
             load();
+            setOpen({ ...item, used: 0, void: 0, unused: item.quantity });
           }}
         />
       )}

@@ -3,6 +3,7 @@ import { sendToUser } from './push.js';
 import { placeOrder } from './orders.js';
 import { audit } from './audit.js';
 import { membershipConfig } from './membership.js';
+import { wasteExpired } from './inventory.js';
 
 // Bộ lập lịch chạy trong tiến trình server (mỗi phút):
 //  1) Gửi web push cho nhắc nhở đến giờ (theo múi giờ APP_TZ)
@@ -152,6 +153,9 @@ async function runExpiryNotices() {
 export async function schedulerTick() {
   await runReminders();
   await runExpiryNotices();
+  // Lô quá hạn → tự xuất hủy (không bán sữa hết hạn); bình thường chỉ là 1 truy vấn rỗng
+  const expired = await wasteExpired('system').catch((e) => console.error('[inventory]', e.message));
+  if (expired?.qty) console.log(`[inventory] Tự xuất hủy ${expired.qty} đơn vị từ ${expired.lots} lô quá hạn`);
   const { time } = nowInTz();
   const created = time >= '06:00' ? await generateSubscriptionOrders() : 0;
   if (failedToday.size > 500) failedToday.clear();

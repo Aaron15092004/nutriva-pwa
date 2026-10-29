@@ -35,8 +35,10 @@ export function prefetch(path) {
 }
 
 // Xóa cache theo tiền tố (vd sau khi đổi kế hoạch: invalidate('/meal-plans'))
+// Trang đang mở (có component dùng path đó) → tải lại ngay ở nền, giữ dữ liệu cũ tới khi có bản mới (không nháy).
 export function invalidate(prefix = '') {
-  for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k);
+  for (const k of [...cache.keys()]) if (k.startsWith(prefix) && !listeners.get(k)?.size) cache.delete(k);
+  for (const [k, set] of listeners) if (k.startsWith(prefix) && set.size) fetchPath(k).catch(() => {});
 }
 export const clearApiCache = () => {
   cache.clear();

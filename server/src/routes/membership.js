@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { MembershipGrant } from '../models/index.js';
 import { ah, requireAuth } from '../middleware/auth.js';
-import { status, redeem } from '../services/membership.js';
+import { status, redeem, startTrial } from '../services/membership.js';
 import { audit } from '../services/audit.js';
 import { track } from '../services/events.js';
 
@@ -25,6 +25,17 @@ router.get(
   ah(async (req, res) => {
     const history = await MembershipGrant.find({ user: req.user._id }).sort({ createdAt: -1 }).limit(20).select('days source ref note createdAt untilAfter').lean();
     res.json({ membership: await status(req.user), history });
+  }),
+);
+
+// Người dùng tự bấm "Kích hoạt dùng thử" (mỗi tài khoản 1 lần)
+router.post(
+  '/membership/trial',
+  ah(async (req, res) => {
+    const user = await startTrial(req.user);
+    await audit(req, 'membership.trial', { entity: 'User', entityId: user._id, summary: 'Kích hoạt dùng thử' });
+    track('membership.trial', { user, req });
+    res.json({ membership: await status(user), trialStart: user.membership.trialStart });
   }),
 );
 

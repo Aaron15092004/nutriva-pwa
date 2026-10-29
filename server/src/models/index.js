@@ -42,6 +42,7 @@ const UserSchema = new Schema(
     // Gói sử dụng app: mở khóa kế hoạch đầy đủ & nhắc nhở. Cộng ngày khi nhập mã trên chai / mua hàng đã thanh toán.
     membership: {
       until: { type: Date, default: null, index: true },
+      trialStart: { type: Date, default: null }, // người dùng tự bấm "Kích hoạt dùng thử" (mỗi tài khoản 1 lần); null = chưa dùng thử
       noticeDate: String, // ngày (YYYY-MM-DD) đã gửi nhắc sắp hết hạn — mỗi ngày tối đa 1 lần
     },
     name: { type: String, required: true, trim: true, maxlength: 60 },
@@ -544,6 +545,8 @@ const ActivationBatchSchema = new Schema(
     lot: { type: Schema.Types.ObjectId, ref: 'StockLot', default: null },
     days: { type: Number, required: true, min: 1, max: 365 }, // ngày sử dụng mỗi mã
     quantity: { type: Number, required: true, min: 1, max: 20000 },
+    packSize: { type: Number, default: 1, min: 1, max: 1000 }, // 1 mã dán cho mấy đơn vị (1 chai, lốc 6, thùng 24…)
+    unit: { type: String, default: 'chai', maxlength: 20 }, // đơn vị in trên tem: chai / gói / hũ…
     expiresAt: { type: Date, default: null }, // hạn kích hoạt mã
     active: { type: Boolean, default: true },
     note: { type: String, maxlength: 200 },

@@ -27,7 +27,7 @@ export const publicUser = (u) => ({
   health: computeHealth(u.profile),
   activePlan: u.activePlan?.plan ? { plan: u.activePlan.plan, startDate: u.activePlan.startDate } : null,
   hasPassword: Boolean(u.passwordHash),
-  membership: { until: u.membership?.until ?? null },
+  membership: { until: u.membership?.until ?? null, trialStart: u.membership?.trialStart ?? null },
   google: Boolean(u.googleId),
   createdAt: u.createdAt,
 });

@@ -4,17 +4,19 @@ import { api } from '../lib/api.js';
 import { useApi } from '../lib/useApi.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Button, ErrorNote, Skeleton } from '../components/ui.jsx';
-import { Field, StepsInput, ImageInput, vnd } from './kit.jsx';
+import { Field, StepsInput, ImageInput, NumInput, numError, vnd } from './kit.jsx';
 import { SALES_CHANNELS } from '@shared/nutrition.js';
 
 // Mặc định khớp server (services/membership.js, models Setting.interstitial) — cài đặt cũ chưa có 2 mục này
 const MEMBERSHIP = { enabled: true, freePlanDays: 3, daysPerBottle: 2, daysPerSet: 4, daysPerTreat: 0, expiryNoticeDays: 2 };
 const INTERSTITIAL = { enabled: true, everyNav: 6, minMinutes: 5, skipSeconds: 3, maxPerDay: 4, skipMembers: false };
 
-function NumberField({ id, label, hint, value, onChange, min = 0, max }) {
+// Ô số có kiểm tra khoảng ngay khi nhập (server vẫn kẹp lại giới hạn khi lưu)
+function NumberField({ id, label, hint, value, onChange, min = 0, max, money, suffix }) {
+  const err = numError(value, { required: true, min, max, integer: true, money });
   return (
-    <Field label={label} hint={hint} htmlFor={id}>
-      <input id={id} className="a-input" type="number" min={min} max={max} value={value ?? ''} onChange={(e) => onChange(Number(e.target.value))} />
+    <Field label={label} hint={hint} htmlFor={id} error={err}>
+      <NumInput id={id} integer={!money} money={money} suffix={suffix} value={value ?? null} invalid={Boolean(err)} onChange={onChange} />
     </Field>
   );
 }
@@ -45,6 +47,13 @@ export default function SettingsPage() {
   const setPlan = (i, patch) => set({ subscriptionPlans: s.subscriptionPlans.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
 
   const save = async () => {
+    // Còn ô báo đỏ (trống / ngoài khoảng cho phép) → không lưu, đưa con trỏ tới ô đầu tiên
+    const bad = document.querySelector('.admin-main .a-field.invalid input, .admin-main input[aria-invalid="true"]');
+    if (bad) {
+      setSaveError('Kiểm tra lại các ô được đánh dấu đỏ trước khi lưu');
+      bad.focus();
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
@@ -71,8 +80,8 @@ export default function SettingsPage() {
           <section className="a-card stack">
             <h2 className="title-sm">Giao hàng</h2>
             <div className="a-form">
-              <Field label="Phí giao hàng (đ)" htmlFor="sf"><input id="sf" className="a-input" type="number" min="0" step="1000" value={s.shippingFee ?? 0} onChange={(e) => set({ shippingFee: Number(e.target.value) })} /></Field>
-              <Field label="Miễn phí giao cho đơn từ (đ)" htmlFor="fs" hint="0 = không miễn phí"><input id="fs" className="a-input" type="number" min="0" step="1000" value={s.freeShipFrom ?? 0} onChange={(e) => set({ freeShipFrom: Number(e.target.value) })} /></Field>
+              <NumberField id="sf" label="Phí giao hàng" money suffix="đ" max={500000} value={s.shippingFee} onChange={(shippingFee) => set({ shippingFee })} />
+              <NumberField id="fs" label="Miễn phí giao cho đơn từ" money suffix="đ" hint="0 = không miễn phí" max={100000000} value={s.freeShipFrom} onChange={(freeShipFrom) => set({ freeShipFrom })} />
             </div>
           </section>
 
@@ -103,8 +112,8 @@ export default function SettingsPage() {
             {s.subscriptionPlans.map((p, i) => (
               <div key={i} className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <input className="a-input" style={{ width: 90 }} aria-label="Mã gói" value={p.id} onChange={(e) => setPlan(i, { id: e.target.value })} />
-                <input className="a-input" style={{ width: 110 }} type="number" min="1" aria-label="Số chai/tuần" value={p.bottles} onChange={(e) => setPlan(i, { bottles: Number(e.target.value) })} />
-                <input className="a-input" style={{ width: 140 }} type="number" min="0" step="1000" aria-label="Giá/tuần" value={p.price} onChange={(e) => setPlan(i, { price: Number(e.target.value) })} />
+                <NumInput style={{ width: 120 }} integer suffix="chai" aria-label="Số chai/tuần" value={p.bottles ?? null} invalid={!(p.bottles >= 1 && p.bottles <= 100)} onChange={(bottles) => setPlan(i, { bottles })} />
+                <NumInput style={{ width: 150 }} money suffix="đ" aria-label="Giá/tuần" value={p.price ?? null} invalid={!(p.price > 0)} onChange={(price) => setPlan(i, { price })} />
                 <input className="a-input grow" aria-label="Nhãn" value={p.label} onChange={(e) => setPlan(i, { label: e.target.value })} />
                 <span className="xs muted">{vnd(p.price / (p.bottles || 1))}/chai</span>
                 <button className="icon-btn" aria-label="Xóa gói" onClick={() => set({ subscriptionPlans: s.subscriptionPlans.filter((_, j) => j !== i) })}><Trash2 size={16} color="var(--danger)" /></button>
@@ -141,7 +150,7 @@ export default function SettingsPage() {
               <Field label="Nội dung" full htmlFor="px"><textarea id="px" className="a-textarea" maxLength={240} value={s.popup?.text ?? ''} onChange={(e) => setPopup({ text: e.target.value })} /></Field>
               <Field label="Chữ trên nút chính" htmlFor="pc"><input id="pc" className="a-input" maxLength={30} value={s.popup?.ctaLabel ?? ''} onChange={(e) => setPopup({ ctaLabel: e.target.value })} /></Field>
               <Field label="Link nút chính" htmlFor="pl" hint="/shop, /shop/subscribe… hoặc https://"><input id="pl" className="a-input" value={s.popup?.ctaLink ?? ''} onChange={(e) => setPopup({ ctaLink: e.target.value })} /></Field>
-              <Field label="Hiện lại sau (giờ)" htmlFor="ph" hint="24 = mỗi ngày 1 lần"><input id="ph" className="a-input" type="number" min="1" max="720" value={s.popup?.everyHours ?? 24} onChange={(e) => setPopup({ everyHours: Number(e.target.value) })} /></Field>
+              <NumberField id="ph" label="Hiện lại sau" suffix="giờ" hint="24 = mỗi ngày 1 lần" min={1} max={720} value={s.popup?.everyHours ?? 24} onChange={(everyHours) => setPopup({ everyHours })} />
               <Field label="Kênh bán hàng" htmlFor="pch"><label className="a-check"><input id="pch" type="checkbox" checked={s.popup?.showChannels !== false} onChange={(e) => setPopup({ showChannels: e.target.checked })} /> Hiện nút Shopee / TikTok / Facebook…</label></Field>
               <Field label="Ảnh" full htmlFor="pi"><ImageInput id="pi" value={s.popup?.image} onChange={(image) => setPopup({ image })} /></Field>
               <Field label="Ghi nguồn ảnh" full htmlFor="pcr"><input id="pcr" className="a-input" value={s.popup?.imageCredit ?? ''} onChange={(e) => setPopup({ imageCredit: e.target.value })} /></Field>

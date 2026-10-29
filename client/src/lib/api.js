@@ -16,6 +16,16 @@ export class ApiError extends Error {
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Server báo đang chạy bản build khác bản app này → service worker còn giữ bản cũ, báo AppBanners kiểm tra & cập nhật
+let staleNotified = false;
+const checkBuild = (res) => {
+  const b = res.headers.get('X-App-Build');
+  if (!staleNotified && b && import.meta.env.PROD && typeof __BUILD_ID__ !== 'undefined' && b !== __BUILD_ID__) {
+    staleNotified = true;
+    window.dispatchEvent(new Event('nutriva:stale'));
+  }
+};
 const RETRY_STATUS = new Set([502, 503, 504]);
 
 async function request(method, path, body, attempt = 0) {
@@ -32,6 +42,7 @@ async function request(method, path, body, attempt = 0) {
     throw new ApiError(0, navigator.onLine === false ? 'Bạn đang ngoại tuyến. Kết nối mạng rồi thử lại nhé.' : 'Không kết nối được máy chủ. Vui lòng thử lại.');
   }
   if (method === 'GET' && attempt === 0 && RETRY_STATUS.has(res.status)) return wait(1200).then(() => request(method, path, body, 1));
+  checkBuild(res);
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

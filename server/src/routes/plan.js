@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PlanChoice } from '../models/index.js';
 import { loadProducts, loadDishes } from '../services/catalog.js';
 import { ah, requireAuth, HttpError, MembershipRequired } from '../middleware/auth.js';
-import { hasAccess, membershipConfig, trialDayIndex } from '../services/membership.js';
+import { hasAccess, membershipConfig, trialActive, trialDayIndex } from '../services/membership.js';
 import { buildDay, alternatives, addDays, findItem, rankMilks, safeProducts } from '../services/plan.js';
 
 const router = Router();
@@ -17,13 +17,14 @@ const loadCtx = async () => {
 };
 const plainProfile = (u) => u.profile.toObject();
 
-// Gợi ý tự động: chưa kích hoạt gói thì dùng thử N ngày đầu kể từ ngày đăng ký (N = freePlanDays)
+// Gợi ý tự động: có gói → mọi ngày; đang dùng thử → các ngày trong thời gian dùng thử; còn lại khóa
 async function dateAccess(user) {
   if (await hasAccess(user)) return () => true;
-  const { freePlanDays } = await membershipConfig();
+  const cfg = await membershipConfig();
+  if (!trialActive(user, cfg)) return () => false;
   return (date) => {
     const i = trialDayIndex(user, date);
-    return i >= 0 && i < freePlanDays;
+    return i != null && i >= 0 && i < cfg.freePlanDays;
   };
 }
 

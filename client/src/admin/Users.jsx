@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Button, ErrorNote } from '../components/ui.jsx';
 import { useApi } from '../lib/useApi.js';
-import { useAdminList, useDebounced, Drawer, Pager, Field, vnd, dt } from './kit.jsx';
+import { useAdminList, useDebounced, Drawer, Pager, Field, NumInput, vnd, dt } from './kit.jsx';
 import { LineChart } from './charts.jsx';
 
 const EVENT_LABEL = {
@@ -63,10 +63,10 @@ function UserMembership({ id }) {
         <span className="muted"> • đã nhập {data.codes} mã</span>
       </p>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        <input className="a-input" style={{ width: 90 }} type="number" min="1" max="3650" aria-label="Số ngày" value={days} onChange={(e) => setDays(Number(e.target.value))} />
+        <NumInput style={{ width: 110 }} integer suffix="ngày" aria-label="Số ngày" value={days} invalid={!(days >= 1 && days <= 3650)} onChange={(v) => setDays(v ?? 0)} />
         <input className="a-input grow" style={{ minWidth: 200 }} maxLength={120} aria-label="Lý do" placeholder="Lý do (bắt buộc), vd: bù lỗi giao hàng" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button className="btn btn-soft btn-sm" disabled={busy || !note.trim() || !days} onClick={() => grant(1)}>+ Cộng</button>
-        <button className="btn btn-soft btn-sm" disabled={busy || !note.trim() || !days || left <= 0} onClick={() => window.confirm(`Trừ ${Math.abs(days)} ngày của người dùng này?`) && grant(-1)}>− Trừ</button>
+        <button className="btn btn-soft btn-sm" disabled={busy || !note.trim() || !(days >= 1 && days <= 3650)} onClick={() => grant(1)}>+ Cộng</button>
+        <button className="btn btn-soft btn-sm" disabled={busy || !note.trim() || !(days >= 1 && days <= 3650) || left <= 0} onClick={() => window.confirm(`Trừ ${Math.abs(days)} ngày của người dùng này?`) && grant(-1)}>− Trừ</button>
       </div>
       {data.history.length > 0 && (
         <table className="a-table">

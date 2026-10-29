@@ -154,11 +154,12 @@ export const kcalRange = (p) => `${fmt(p.kcalMin)}–${fmt(p.kcalMax)} kcal/ngà
 function LockBadge({ dayCount }) {
   const { m } = useMembership();
   if (!m?.enabled || m.active) return null;
-  const trial = memberState(m) === 'trial';
+  const st = memberState(m);
+  const trial = st === 'trial';
   return (
     <span className={cx('absolute right-4 top-4 inline-flex items-center gap-1 rounded-full px-2 py-1 font-secondary text-xs font-bold shadow-pill', trial ? 'bg-white/95 text-brand-dark' : 'bg-primary/85 text-white')}>
       {trial ? <LockOpen size={12} aria-hidden="true" /> : <Lock size={12} aria-hidden="true" />}
-      {trial ? `Mở ${Math.min(m.freePlanDays, dayCount)}/${dayCount} ngày` : 'Cần kích hoạt'}
+      {trial ? `Mở ${Math.min(m.freePlanDays, dayCount)}/${dayCount} ngày` : st === 'new' ? 'Kích hoạt dùng thử để mở' : 'Cần kích hoạt'}
     </span>
   );
 }

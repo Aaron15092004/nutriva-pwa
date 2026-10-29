@@ -115,7 +115,7 @@ function MembershipCard() {
         <QrCode size={22} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className={cx('block text-base font-bold', m.member ? '' : 'text-primary')}>{{ member: `Gói NUTRIVA • còn ${m.daysLeft} ngày`, expired: 'Gói NUTRIVA đã hết hạn', trial: `Dùng thử • còn ${m.trialLeft} ngày`, over: 'Hết thời gian dùng thử' }[memberState(m)]}</span>
+        <span className={cx('block text-base font-bold', m.member ? '' : 'text-primary')}>{{ member: `Gói NUTRIVA • còn ${m.daysLeft} ngày`, expired: 'Gói NUTRIVA đã hết hạn', trial: `Dùng thử • còn ${m.trialLeft} ngày`, new: `Nhận ${m.freePlanDays} ngày dùng thử`, over: 'Hết thời gian dùng thử' }[memberState(m)]}</span>
         <span className={cx('block text-xs', m.member ? 'text-brand-soft' : 'text-muted')}>{m.member ? `Dùng đến ${fmtDate(m.until)} • quét mã trên chai để cộng thêm` : 'Quét / nhập mã trên chai sữa để mở khóa'}</span>
       </span>
       <span className={cx('inline-flex h-9 shrink-0 items-center rounded-full px-4 text-xs font-bold', m.member ? 'bg-white text-brand-core' : 'bg-brand-dark text-white')}>{m.member ? 'Gia hạn' : 'Kích hoạt'}</span>

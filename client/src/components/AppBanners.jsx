@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { WifiOff, Sparkles, X } from 'lucide-react';
 import { pendingCount, flushOutbox } from '../lib/outbox.js';
@@ -28,24 +29,65 @@ function usePending() {
   return n;
 }
 
-// Thanh thông báo trên cùng: mất mạng (kèm số thao tác đang chờ gửi) và có phiên bản app mới
+// Đang gõ dở / đang mở hộp thoại → không tự tải lại (mất dữ liệu đang nhập)
+const busy = () => {
+  const el = document.activeElement;
+  return Boolean((el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) || document.querySelector('[role="dialog"]'));
+};
+
+// Thanh thông báo trên cùng: mất mạng (kèm số thao tác đang chờ gửi) và có phiên bản app mới.
+// Bản mới được áp dụng tự động vào lúc an toàn: vừa mở app (< 20 giây), khi chuyển trang, hoặc khi app bị ẩn (chuyển sang app khác);
+// chỉ hiện nút "Cập nhật" khi người dùng đang gõ dở.
 export default function AppBanners() {
   const online = useOnline();
   const pending = usePending();
+  const { pathname } = useLocation();
   const [dismissed, setDismissed] = useState(false);
+  const loadedAt = useRef(Date.now());
+  const regRef = useRef(null);
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    // App mở lâu (PWA ít khi đóng hẳn): kiểm tra bản mới mỗi giờ
     onRegisteredSW(url, reg) {
-      if (reg) setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+      if (!reg) return;
+      regRef.current = reg;
+      const check = () => reg.update().catch(() => {});
+      // PWA trên điện thoại ít khi đóng hẳn: kiểm tra bản mới mỗi 15 phút, khi mở lại app và khi có mạng lại
+      setInterval(check, 15 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check());
+      window.addEventListener('online', check);
     },
   });
+
+  // Server báo đang chạy bản khác (X-App-Build) → kiểm tra bản mới ngay
+  useEffect(() => {
+    const onStale = () => regRef.current?.update().catch(() => {});
+    window.addEventListener('nutriva:stale', onStale);
+    return () => window.removeEventListener('nutriva:stale', onStale);
+  }, []);
 
   useEffect(() => {
     if (online) flushOutbox();
   }, [online]);
+
+  // Có bản mới: vừa mở app → áp dụng ngay; đang dùng dở → chờ chuyển trang hoặc app bị ẩn (vẫn hiện nút "Cập nhật")
+  useEffect(() => {
+    if (!needRefresh) return undefined;
+    if (Date.now() - loadedAt.current < 20000 && !busy()) {
+      updateServiceWorker(true);
+      return undefined;
+    }
+    const onHide = () => document.visibilityState === 'hidden' && updateServiceWorker(true);
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, [needRefresh, updateServiceWorker]);
+
+  // Chuyển trang = lúc an toàn để nạp bản mới
+  const firstPath = useRef(pathname);
+  useEffect(() => {
+    if (needRefresh && pathname !== firstPath.current && !busy()) updateServiceWorker(true);
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-[90] flex flex-col items-center gap-2 px-4 pt-[max(8px,env(safe-area-inset-top))]">

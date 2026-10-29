@@ -3,19 +3,22 @@ import { Plus, Search, Trash2, Save } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Button, ErrorNote } from '../components/ui.jsx';
-import { useAdminList, useDebounced, Drawer, Pager, Field, ImageInput, ChipsInput, StepsInput, VariantsInput, IngredientsInput, MicrosInput, JsonInput } from './kit.jsx';
+import { useAdminList, useDebounced, Drawer, Pager, Field, NumInput, numError, slugify, ImageInput, ChipsInput, StepsInput, VariantsInput, IngredientsInput, MicrosInput, JsonInput } from './kit.jsx';
 
-// Trang CRUD chung, cấu hình bằng `config` (xem resources.js)
-function FieldInput({ f, value, onChange }) {
+const NUTRITION = [['kcal', 'kcal'], ['protein', 'Đạm (g)'], ['carb', 'Bột đường (g)'], ['fat', 'Béo (g)']];
+
+// Trang CRUD chung, cấu hình bằng `config` (xem resources.jsx)
+function FieldInput({ f, value, onChange, invalid, form }) {
   const id = `f-${f.key}`;
+  if (f.readOnly && f.display) return <div className="a-static">{f.display(value, form)}</div>;
   switch (f.type) {
     case 'number':
-      return <input id={id} className="a-input" type="number" step={f.step ?? 'any'} min={f.min} value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} />;
+      return <NumInput id={id} value={value ?? null} onChange={onChange} money={f.money} integer={f.integer} suffix={f.suffix} placeholder={f.placeholder} invalid={invalid} disabled={f.readOnly} />;
     case 'textarea':
-      return <textarea id={id} className="a-textarea" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />;
+      return <textarea id={id} className="a-textarea" maxLength={f.maxLength} value={value ?? ''} aria-invalid={invalid || undefined} onChange={(e) => onChange(e.target.value)} />;
     case 'select':
       return (
-        <select id={id} className="a-select" value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+        <select id={id} className="a-select" value={value ?? ''} aria-invalid={invalid || undefined} onChange={(e) => onChange(e.target.value)}>
           {f.options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
       );
@@ -48,25 +51,42 @@ function FieldInput({ f, value, onChange }) {
     case 'variants':
       return <VariantsInput value={value ?? []} onChange={onChange} />;
     case 'datetime':
-      return <input id={id} className="a-input" type="datetime-local" value={value ? new Date(new Date(value).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : null)} />;
+      return <input id={id} className="a-input" type="datetime-local" value={value ? new Date(new Date(value).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} aria-invalid={invalid || undefined} onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : null)} />;
     case 'nutrition':
       return (
         <div className="grid-4">
-          {[['kcal', 'kcal'], ['protein', 'Đạm g'], ['carb', 'Bột đường g'], ['fat', 'Béo g']].map(([k, l]) => (
+          {NUTRITION.map(([k, l]) => (
             <label key={k} className="stack" style={{ gap: 2 }}>
               <span className="xs muted">{l}</span>
-              <input className="a-input" type="number" step="any" min="0" value={value?.[k] ?? ''} onChange={(e) => onChange({ ...value, [k]: Number(e.target.value) })} />
+              <NumInput value={value?.[k] ?? null} onChange={(v) => onChange({ ...value, [k]: v })} invalid={invalid && (value?.[k] == null || value[k] < 0)} aria-label={l} />
             </label>
           ))}
         </div>
       );
     default:
-      return <input id={id} className="a-input" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />;
+      return <input id={id} className="a-input" maxLength={f.maxLength} value={value ?? ''} placeholder={f.placeholder} aria-invalid={invalid || undefined} onChange={(e) => onChange(f.upper ? e.target.value.toUpperCase() : e.target.value)} />;
   }
+}
+
+// Luật kiểm tra theo khai báo trường: required, min, max, integer, maxLength, pattern (+ patternMsg), validate(v, form)
+function fieldError(f, v, form) {
+  if (f.readOnly) return '';
+  const custom = f.validate?.(v, form);
+  if (custom) return custom;
+  if (f.type === 'number') return numError(v, f);
+  if (f.type === 'nutrition') return NUTRITION.some(([k]) => v?.[k] == null || v[k] < 0) ? 'Nhập đủ 4 chỉ số (số ≥ 0)' : '';
+  const empty = v == null || v === '' || (Array.isArray(v) && !v.length);
+  if (empty) return f.required ? 'Bắt buộc nhập' : '';
+  if (typeof v === 'string') {
+    if (f.maxLength && v.length > f.maxLength) return `Tối đa ${f.maxLength} ký tự (đang ${v.length})`;
+    if (f.pattern && !f.pattern.test(v)) return f.patternMsg ?? 'Sai định dạng';
+  }
+  return '';
 }
 
 // Trường có `show(form)` chỉ hiện (và chỉ gửi đi) khi điều kiện đúng
 const visible = (fields, form) => fields.filter((f) => !f.show || f.show(form));
+const FULL = ['textarea', 'steps', 'chips', 'image', 'nutrition', 'variants', 'credit', 'micros', 'json', 'ingredients'];
 
 export default function ResourcePage({ config }) {
   const toast = useToast();
@@ -75,27 +95,50 @@ export default function ResourcePage({ config }) {
   const [page, setPage] = useState(1);
   const search = useDebounced(q);
   const list = useAdminList(config.path, { q: search, page, limit: 30, ...filters });
-  const [editing, setEditing] = useState(null); // { id?, form }
+  const [editing, setEditing] = useState(null); // { id?, form, touched: Set, submitted, server: {}, slugEdited }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const open = (item) => {
     setError('');
-    setEditing(item ? { id: item._id, form: { ...item } } : { form: { ...config.defaults } });
+    setEditing(item ? { id: item._id, form: { ...item }, touched: new Set(), server: {}, slugEdited: true } : { form: { ...config.defaults }, touched: new Set(), server: {}, slugEdited: false });
   };
-  const set = (key, v) => setEditing((e) => ({ ...e, form: { ...e.form, [key]: v } }));
+  const set = (key, v) =>
+    setEditing((e) => {
+      const form = { ...e.form, [key]: v };
+      // Thêm mới: mã/slug tự sinh theo tên cho tới khi admin tự sửa ô mã
+      const auto = config.slug;
+      if (auto && !e.id && !e.slugEdited && key !== auto.field && auto.from.includes(key)) form[auto.field] = auto.make(form);
+      const server = { ...e.server };
+      delete server[key];
+      return { ...e, form, server, slugEdited: e.slugEdited || key === auto?.field };
+    });
+  const touch = (key) => setEditing((e) => (e.touched.has(key) ? e : { ...e, touched: new Set([...e.touched, key]) }));
+
+  const fields = editing ? visible(config.fields, editing.form) : [];
+  const errors = editing ? Object.fromEntries(fields.map((f) => [f.key, fieldError(f, editing.form[f.key], editing.form)]).filter(([, m]) => m)) : {};
+  const shown = (key) => editing?.server[key] || ((editing?.submitted || editing?.touched.has(key)) && errors[key]) || '';
 
   const save = async () => {
+    const bad = Object.keys(errors);
+    if (bad.length) {
+      setEditing((e) => ({ ...e, submitted: true }));
+      setError(`Kiểm tra lại ${bad.length} trường được đánh dấu đỏ`);
+      document.getElementById(`f-${bad[0]}`)?.focus();
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      const body = Object.fromEntries(visible(config.fields, editing.form).filter((f) => !f.readOnly).map((f) => [f.key, editing.form[f.key]]));
+      const body = Object.fromEntries(fields.filter((f) => !f.readOnly).map((f) => [f.key, editing.form[f.key]]));
       if (editing.id) await api.patch(`${config.path}/${editing.id}`, body);
       else await api.post(config.path, body);
       toast(editing.id ? 'Đã lưu thay đổi' : `Đã thêm ${config.singular}`);
       setEditing(null);
       list.reload();
     } catch (e) {
+      // Lỗi theo từng trường từ server (trùng mã, sai định dạng…) → hiện ngay dưới ô
+      if (e.data?.fields) setEditing((x) => ({ ...x, server: e.data.fields, submitted: true }));
       setError(e.message);
     } finally {
       setSaving(false);
@@ -114,6 +157,7 @@ export default function ResourcePage({ config }) {
     }
   };
 
+  const columns = config.rowActions ? [...config.columns, { key: '_actions', label: '', render: config.rowActions }] : config.columns;
   return (
     <>
       <div className="admin-head">
@@ -138,12 +182,16 @@ export default function ResourcePage({ config }) {
       <div className="a-table-wrap">
         <table className="a-table">
           <thead>
-            <tr>{config.columns.map((c) => <th key={c.key} className={c.num ? 'num' : ''}>{c.label}</th>)}</tr>
+            <tr>{columns.map((c) => <th key={c.key} className={c.num ? 'num' : ''}>{c.label}</th>)}</tr>
           </thead>
           <tbody>
             {list.items.map((it) => (
-              <tr key={it._id} onClick={() => open(it)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && open(it)}>
-                {config.columns.map((c) => <td key={c.key} className={c.num ? 'num' : ''}>{c.render ? c.render(it) : String(it[c.key] ?? '')}</td>)}
+              <tr key={it._id} onClick={() => open(it)} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && open(it)}>
+                {columns.map((c) => (
+                  <td key={c.key} className={c.num ? 'num' : c.key === '_actions' ? 'num whitespace-nowrap' : ''} onClick={c.key === '_actions' ? (e) => e.stopPropagation() : undefined}>
+                    {c.render ? c.render(it) : String(it[c.key] ?? '')}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
@@ -166,13 +214,23 @@ export default function ResourcePage({ config }) {
         }
       >
         {editing && (
-          <div className="a-form">
-            {visible(config.fields, editing.form).map((f) => (
-              <Field key={f.key} label={f.label} hint={f.hint} full={f.full ?? ['textarea', 'steps', 'chips', 'image', 'nutrition', 'variants', 'credit', 'micros', 'json', 'ingredients'].includes(f.type)} htmlFor={`f-${f.key}`}>
-                <FieldInput f={f} value={editing.form[f.key]} onChange={(v) => set(f.key, v)} />
-              </Field>
+          <form
+            className="a-form"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+          >
+            {fields.map((f) => (
+              <div key={f.key} className="contents" onBlur={() => touch(f.key)}>
+                <Field label={f.label} hint={f.hint} required={f.required} error={shown(f.key)} full={f.full ?? FULL.includes(f.type)} htmlFor={`f-${f.key}`}>
+                  <FieldInput f={f} value={editing.form[f.key]} form={editing.form} invalid={Boolean(shown(f.key))} onChange={(v) => set(f.key, v)} />
+                </Field>
+              </div>
             ))}
-          </div>
+            <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+          </form>
         )}
         <ErrorNote error={error} />
       </Drawer>
