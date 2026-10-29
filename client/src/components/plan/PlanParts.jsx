@@ -1,11 +1,12 @@
 // Thành phần dùng chung cho Kế hoạch ăn: macro, tổng ngày, dòng món, khối bữa, thẻ kế hoạch.
 import { Link } from 'react-router-dom';
-import { Zap, Wheat, Droplet, ChevronRight } from 'lucide-react';
+import { Zap, Wheat, Droplet, ChevronRight, Milk, Lock, LockOpen } from 'lucide-react';
 import { PLAN_STYLES } from '@shared/nutrition.js';
 import { MEAL_THEME } from '../../theme/meals.js';
 import { colors } from '../../theme/tokens.js';
 import { FOOD_ICON } from '../meals.js';
 import { ProgressBar, fmt, cx } from '../ds/index.jsx';
+import { useMembership, memberState } from '../../lib/membership.js';
 
 export const STYLE_LABEL = Object.fromEntries(PLAN_STYLES.map((s) => [s.id, s.label]));
 const MACROS = [
@@ -91,10 +92,14 @@ export function ItemThumb({ item, size = 56 }) {
 export const amountText = (it) =>
   it.kind === 'dish'
     ? `${String(it.portion).replace('.', ',')} phần${it.grams ? ` (~${fmt(it.grams)} g)` : ''}`
-    : `${fmt(it.grams)} g${it.note ? ` (${it.note})` : ''}`;
+    : `${fmt(it.grams)} ${/^sua-(?!chua)/.test(it.food ?? '') ? 'ml' : 'g'}${it.note ? ` (${it.note})` : ''}`;
+
+// Món có sữa hạt NUTRIVA (thực phẩm sữa hạt, sản phẩm NUTRIVA hoặc món nấu với sữa hạt)
+export const isMilkItem = (it) => it.food === 'sua-hat-nutriva' || it.kind === 'milk' || /sữa hạt/i.test(it.name ?? '');
+const milkLink = (it) => (it.kind === 'milk' && it.slug ? `/shop/p/${it.slug}` : '/shop?tab=milk');
 
 // Một món trong thực đơn: thumb, tên, định lượng • kcal, macro, nút hành động bên phải
-export function PlanItemRow({ item, action, children }) {
+export function PlanItemRow({ item, action, children, buy = true }) {
   return (
     <li className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-card">
       <ItemThumb item={item} />
@@ -104,6 +109,11 @@ export function PlanItemRow({ item, action, children }) {
           {amountText(item)} • {fmt(item.kcal)} kcal
         </p>
         <MacroLine protein={item.protein} carb={item.carb} fat={item.fat} className="mt-1" />
+        {buy && !item.missing && isMilkItem(item) && (
+          <Link to={milkLink(item)} className="mt-2 inline-flex min-h-8 items-center gap-1 rounded-full bg-brand-light px-2 text-xs font-bold text-brand-deep hover:bg-brand-soft">
+            <Milk size={14} aria-hidden="true" /> Mua sữa hạt NUTRIVA
+          </Link>
+        )}
         {children}
       </div>
       {action}
@@ -140,18 +150,32 @@ export function PlanPills({ plan, className = '' }) {
 
 export const kcalRange = (p) => `${fmt(p.kcalMin)}–${fmt(p.kcalMax)} kcal/ngày`;
 
-// Thẻ kế hoạch lớn có ảnh bìa (Khám phá, Tự tạo)
+// Nhãn khóa trên ảnh bìa: đang dùng thử (mở vài ngày đầu) / hết hạn (cần kích hoạt). Thành viên → không hiện.
+function LockBadge({ dayCount }) {
+  const { m } = useMembership();
+  if (!m?.enabled || m.active) return null;
+  const trial = memberState(m) === 'trial';
+  return (
+    <span className={cx('absolute right-4 top-4 inline-flex items-center gap-1 rounded-full px-2 py-1 font-secondary text-xs font-bold shadow-pill', trial ? 'bg-white/95 text-brand-dark' : 'bg-primary/85 text-white')}>
+      {trial ? <LockOpen size={12} aria-hidden="true" /> : <Lock size={12} aria-hidden="true" />}
+      {trial ? `Mở ${Math.min(m.freePlanDays, dayCount)}/${dayCount} ngày` : 'Cần kích hoạt'}
+    </span>
+  );
+}
+
+// Thẻ kế hoạch lớn có ảnh bìa (Khám phá, Tự tạo). Ảnh luôn 16:9 (ảnh nằm tuyệt đối → ảnh dọc không kéo cao thẻ)
 export function PlanCard({ plan, badge }) {
   return (
-    <Link to={`/plan/m/${plan.mine ? plan.id : plan.slug}`} className="group flex flex-col overflow-hidden rounded-xl bg-white shadow-card transition hover:shadow-float active:scale-[0.99]">
-      <div className="relative aspect-[16/9] bg-surface">
-        {plan.image && <img src={plan.image} alt="" loading="lazy" className="h-full w-full object-cover" />}
+    <Link to={`/plan/m/${plan.mine ? plan.id : plan.slug}`} className="group flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-card transition hover:shadow-float active:scale-[0.99]">
+      <div className="relative aspect-[16/9] shrink-0 overflow-hidden bg-surface">
+        {plan.image && <img src={plan.image} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />}
         {badge && <span className="absolute left-4 top-4 rounded-full bg-white/95 px-2 py-1 font-secondary text-xs font-bold text-brand-dark shadow-pill">{badge}</span>}
+        {!plan.mine && <LockBadge dayCount={plan.dayCount ?? 7} />}
       </div>
-      <div className="flex flex-col gap-2 p-4">
+      <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="line-clamp-2 text-lg font-bold leading-6 text-primary group-hover:text-brand-dark">{plan.title}</h3>
         <p className="font-secondary text-sm text-muted">{kcalRange(plan)}</p>
-        <PlanPills plan={plan} />
+        <PlanPills plan={plan} className="mt-auto" />
       </div>
     </Link>
   );
@@ -162,7 +186,7 @@ export function PlanMiniCard({ plan, note }) {
   return (
     <Link to={`/plan/m/${plan.mine ? plan.id : plan.slug}`} className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-card transition hover:shadow-float active:scale-[0.99]">
       {plan.image ? (
-        <img src={plan.image} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-md object-cover" />
+        <img src={plan.image} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-md object-cover" style={{ aspectRatio: '1 / 1' }} />
       ) : (
         <span className="h-20 w-20 shrink-0 rounded-md bg-surface" aria-hidden="true" />
       )}

@@ -11,11 +11,14 @@ import { CircleButton, SectionHeader } from '../../components/ds/index.jsx';
 import { ChipTabs } from '../../components/ds/charts.jsx';
 import { HeroBackdrop } from '../../components/home/HomeHeader.jsx';
 import { ProductCard, CartBar } from '../../components/shop/ShopParts.jsx';
+import PromoCarousel from '../../components/promo/PromoCarousel.jsx';
+import ChannelLinks, { useChannels } from '../../components/promo/ChannelLinks.jsx';
 
 const TABS = [
   { id: 'all', label: 'Tất cả' },
   { id: 'milk', label: 'Sữa hạt pha sẵn' },
-  { id: 'diy', label: 'Set tự làm' },
+  { id: 'diy', label: 'Gói hạt tự nấu' },
+  { id: 'treat', label: 'Từ sữa hạt' },
 ];
 
 const strip = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
@@ -34,7 +37,10 @@ function SubscribeBanner({ from }) {
           {from ? `Từ ${money(from)}/tuần` : 'Xem gói'} <ChevronRight size={14} aria-hidden="true" />
         </span>
       </div>
-      <img src="/img/milk-pack.webp" alt="" className="w-36 shrink-0 object-cover object-[center_85%] [mask-image:linear-gradient(to_right,transparent,#000_35%)]" />
+      <span className="relative flex w-32 shrink-0 items-end justify-center gap-0 pr-2" aria-hidden="true">
+        <img src="/img/products/bottle-sen-com.webp" alt="" className="-mr-6 h-28 w-auto rotate-[-6deg] drop-shadow-lg" />
+        <img src="/img/products/bottle-mach-nhien.webp" alt="" className="relative h-32 w-auto drop-shadow-lg" />
+      </span>
     </Link>
   );
 }
@@ -61,6 +67,7 @@ export default function Shop() {
   const picks = useMemo(() => products.filter((p) => p.type === 'milk' && p.flavor === flavor && p.stock !== 0 && !conflict(p)), [products, flavor]); // eslint-disable-line react-hooks/exhaustive-deps
   const flavorLabel = FLAVORS.find((f) => f.id === flavor)?.label;
   const minPlan = cfg.data?.plans?.length ? Math.min(...cfg.data.plans.map((x) => x.price)) : null;
+  const channels = useChannels();
 
   return (
     <main className="relative min-h-dvh overflow-x-clip bg-gradient-to-b from-background via-surface to-background pb-[calc(var(--nav-h)+var(--safe-b)+88px)]">
@@ -69,7 +76,7 @@ export default function Shop() {
         <header className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <h1 className="font-display text-2xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">Cửa hàng</h1>
-            <p className="font-secondary text-xs font-medium text-secondary">Sữa hạt tươi & set tự làm tại nhà</p>
+            <p className="font-secondary text-xs font-medium text-secondary">Sữa hạt tươi, gói hạt tự nấu & món ngon từ sữa hạt</p>
           </div>
           <span className="flex gap-2">
             <CircleButton icon={Receipt} label="Đơn hàng của tôi" onClick={() => navigate('/orders')} className="bg-white text-primary shadow-pill" size={44} />
@@ -90,7 +97,7 @@ export default function Shop() {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Tìm sữa hạt, set tự làm…"
+            placeholder="Tìm sữa hạt, sữa chua hạt, granola…"
             aria-label="Tìm sản phẩm"
             className="h-full min-w-0 flex-1 bg-transparent text-base text-primary outline-none placeholder:text-subtle [&::-webkit-search-cancel-button]:hidden"
           />
@@ -101,6 +108,7 @@ export default function Shop() {
           )}
         </label>
 
+        {!q && <PromoCarousel placement="shop" />}
         {!q && <SubscribeBanner from={minPlan} />}
 
         {!q && picks.length > 0 && (
@@ -140,6 +148,14 @@ export default function Shop() {
             <p className="rounded-xl bg-white p-6 text-center text-sm text-muted shadow-card">Không tìm thấy sản phẩm phù hợp.</p>
           )}
         </section>
+
+        {!q && channels.length > 0 && (
+          <section aria-labelledby="channels-title" className="flex flex-col gap-2">
+            <h2 id="channels-title" className="text-lg font-extrabold text-primary">Mua NUTRIVA trên các sàn</h2>
+            <p className="-mt-1 text-sm text-muted">Gian hàng chính thức — săn voucher, freeship và livestream ưu đãi.</p>
+            <ChannelLinks channels={channels} from="shop" />
+          </section>
+        )}
       </div>
       <CartBar />
     </main>

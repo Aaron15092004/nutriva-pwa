@@ -5,10 +5,14 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApi } from '../../lib/useApi.js';
 import { api } from '../../lib/api.js';
+import { changeWater } from '../../lib/logs.js';
 import { num, today, addDays, weekStart, longDate } from '../../lib/format.js';
-import { Segmented, Ring, Bar, Skeleton, Button } from '../../components/ui.jsx';
+import { Segmented, Ring, Bar, Skeleton } from '../../components/ui.jsx';
+import { CircleButton } from '../../components/ds/index.jsx';
+import { PrimaryButton } from '../../components/ds/form.jsx';
 import ComplianceChart, { complianceScore } from '../../components/ComplianceChart.jsx';
 import Nuti from '../../components/mascot/Nuti.jsx';
+import PromoCarousel from '../../components/promo/PromoCarousel.jsx';
 import { sumLog } from '../../components/meals.js';
 
 const MOODS = [
@@ -49,9 +53,14 @@ export default function Track() {
   const currentMood = mood ?? log?.mood;
 
   const addWater = async () => {
-    const d = await api.post(`/logs/${date}/water`, { ml: 200 });
-    setData(d);
-    week.reload();
+    try {
+      const r = await changeWater(date, log, 200);
+      setData({ log: r.log });
+      toast(r.queued ? 'Đã lưu 200 ml trên máy — sẽ đồng bộ khi có mạng' : 'Đã thêm 200 ml nước');
+      if (!r.queued) week.reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   };
 
   const sendMood = async () => {
@@ -59,123 +68,175 @@ export default function Track() {
     try {
       setData(await api.put(`/logs/${date}/mood`, { mood: currentMood }));
       toast('Cảm ơn bạn đã chia sẻ!');
+    } catch (e) {
+      toast(e.message, 'error');
     } finally {
       setSending(false);
     }
   };
 
+  const stepDate = (n) => {
+    setMood(null);
+    setDate(addDays(date, n));
+  };
+  const card = 'rounded-xl bg-white p-4 shadow-card';
+  const badge = 'rounded-full bg-brand-light px-2 py-1 font-secondary text-xs font-semibold text-brand-deep';
+  const rangeLabel = view === 'day' ? longDate(date) : `Tuần ${longDate(weekStart(date)).split(', ')[1]} – ${longDate(addDays(weekStart(date), 6)).split(', ')[1]}`;
+
   return (
-    <main className="page stack-lg">
-      <header className="row-between">
-        <h1 className="title-lg">Theo dõi của tôi</h1>
-        <Link to="/track/reminders" className="icon-btn" aria-label="Nhắc nhở"><Bell size={22} /></Link>
+    <main className="flex flex-col gap-6 px-4 pb-[calc(var(--nav-h)+var(--safe-b)+24px)] pt-[max(16px,env(safe-area-inset-top))]">
+      <header className="flex items-center justify-between gap-4">
+        <h1 className="font-display text-2xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">Theo dõi của tôi</h1>
+        <Link to="/track/reminders" className="grid size-11 place-items-center rounded-full text-primary hover:bg-brand-light" aria-label="Nhắc nhở">
+          <Bell size={22} aria-hidden="true" />
+        </Link>
       </header>
 
       <Segmented label="Chế độ xem" value={view} onChange={setView} options={[{ id: 'day', label: 'Ngày' }, { id: 'week', label: 'Tuần' }]} />
 
-      <div className="row-between">
-        <button className="icon-btn" aria-label={view === 'day' ? 'Ngày trước' : 'Tuần trước'} onClick={() => { setMood(null); setDate(addDays(date, view === 'day' ? -1 : -7)); }}><ChevronLeft size={22} /></button>
-        <b className="small">{view === 'day' ? longDate(date) : `Tuần ${longDate(weekStart(date)).split(', ')[1]} – ${longDate(addDays(weekStart(date), 6)).split(', ')[1]}`}</b>
-        <button className="icon-btn" aria-label={view === 'day' ? 'Ngày sau' : 'Tuần sau'} onClick={() => { setMood(null); setDate(addDays(date, view === 'day' ? 1 : 7)); }}><ChevronRight size={22} /></button>
+      <div className="flex items-center justify-between gap-2">
+        <CircleButton icon={ChevronLeft} label={view === 'day' ? 'Ngày trước' : 'Tuần trước'} onClick={() => stepDate(view === 'day' ? -1 : -7)} className="bg-white text-primary shadow-pill" />
+        <button type="button" onClick={() => setDate(today())} className="min-h-10 px-2 text-sm font-bold text-primary" aria-live="polite">
+          {rangeLabel}
+        </button>
+        <CircleButton icon={ChevronRight} label={view === 'day' ? 'Ngày sau' : 'Tuần sau'} onClick={() => stepDate(view === 'day' ? 1 : 7)} className="bg-white text-primary shadow-pill" />
       </div>
 
       {view === 'day' ? (
         <>
-          <section className="card row-between">
-            <div className="stack" style={{ gap: 6 }}>
-              <span className="row strong" style={{ gap: 6 }}><Droplets size={20} color="var(--water)" /> Lượng nước</span>
-              <span className="tabular"><b style={{ fontSize: 26 }}>{num(water)}</b> <span className="muted">/ {num(h.waterMl)} ml</span></span>
-              <button className="btn btn-primary btn-sm" onClick={addWater} style={{ alignSelf: 'flex-start' }}>+ 200 ml</button>
+          <section className={`${card} flex items-center justify-between gap-4`}>
+            <div className="flex flex-col gap-2">
+              <span className="flex items-center gap-2 font-bold text-primary">
+                <Droplets size={20} className="text-water-icon" aria-hidden="true" /> Lượng nước
+              </span>
+              <span className="font-secondary tabular-nums">
+                <b className="text-2xl text-primary">{num(water)}</b> <span className="text-muted">/ {num(h.waterMl)} ml</span>
+              </span>
+              <button type="button" onClick={addWater} className="h-10 self-start rounded-full bg-water-icon px-4 text-sm font-bold text-white transition active:scale-95">
+                + 200 ml
+              </button>
             </div>
             <Ring value={water} max={h.waterMl} size={96} stroke={10} color="var(--water)" track="#d6eaf8">
-              <b className="tabular">{Math.round((water / h.waterMl) * 100)}%</b>
+              <b className="font-secondary tabular-nums text-primary">{Math.round((water / h.waterMl) * 100)}%</b>
             </Ring>
           </section>
 
-          <section className="card row-between">
-            <div className="stack" style={{ gap: 6 }}>
-              <span className="row strong" style={{ gap: 6 }}><Footprints size={20} color="var(--primary-600)" /> Vận động</span>
-              <span className="tabular"><b style={{ fontSize: 26 }}>{exMin}</b> <span className="muted">/ {h.exerciseMin} phút</span></span>
-              <button className="btn btn-primary btn-sm" onClick={() => navigate(`/activities?date=${date}`)} style={{ alignSelf: 'flex-start' }}>Ghi nhận</button>
+          <section className={`${card} flex items-center justify-between gap-4`}>
+            <div className="flex flex-col gap-2">
+              <span className="flex items-center gap-2 font-bold text-primary">
+                <Footprints size={20} className="text-brand-main" aria-hidden="true" /> Vận động
+              </span>
+              <span className="font-secondary tabular-nums">
+                <b className="text-2xl text-primary">{exMin}</b> <span className="text-muted">/ {h.exerciseMin} phút</span>
+              </span>
+              <button type="button" onClick={() => navigate(`/activities?date=${date}`)} className="h-10 self-start rounded-full bg-brand-dark px-4 text-sm font-bold text-white transition active:scale-95">
+                Ghi nhận
+              </button>
             </div>
             <Ring value={exMin} max={h.exerciseMin} size={96} stroke={10}>
-              <b className="tabular">{Math.min(999, Math.round((exMin / h.exerciseMin) * 100))}%</b>
+              <b className="font-secondary tabular-nums text-primary">{Math.min(999, Math.round((exMin / h.exerciseMin) * 100))}%</b>
             </Ring>
           </section>
 
-          <section className="card stack">
-            <div className="row-between">
-              <h2 className="title-sm">Mức độ tuân thủ kế hoạch</h2>
-              {week.ready && <span className="badge">TB {week.avg}%</span>}
+          <section className={`${card} flex flex-col gap-2`}>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-bold text-primary">Mức độ tuân thủ kế hoạch</h2>
+              {week.ready && <span className={badge}>TB {week.avg}%</span>}
             </div>
-            <p className="xs muted" style={{ marginTop: -6 }}>So sánh calo đã ăn với mục tiêu {num(h.targetKcal)} kcal mỗi ngày.</p>
+            <p className="text-xs text-muted">So sánh calo đã ăn với mục tiêu {num(h.targetKcal)} kcal mỗi ngày.</p>
             {week.ready ? <ComplianceChart days={week.days} selected={date} /> : <Skeleton h={170} />}
           </section>
 
-          <section className="card stack">
+          <section className={`${card} flex flex-col gap-4`}>
             <div>
-              <h2 className="title-sm">Cảm nhận hôm nay</h2>
-              <p className="small muted">Hôm nay bạn cảm thấy thế nào?</p>
+              <h2 className="text-base font-bold text-primary">Cảm nhận hôm nay</h2>
+              <p className="text-sm text-muted">Hôm nay bạn cảm thấy thế nào?</p>
             </div>
-            <div className="grid-4" style={{ gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }} role="radiogroup" aria-label="Cảm nhận">
-              {MOODS.map((m) => (
-                <button key={m.id} role="radio" aria-checked={currentMood === m.id} className="choice" style={{ minHeight: 72, fontSize: 11.5, padding: 4 }} onClick={() => setMood(m.id)}>
-                  <m.icon size={24} /> {m.label}
-                </button>
-              ))}
+            <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label="Cảm nhận">
+              {MOODS.map((m) => {
+                const on = currentMood === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setMood(m.id)}
+                    className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-lg border-2 px-1 text-xs leading-tight transition ${on ? 'border-brand-dark bg-brand-light font-bold text-brand-deep' : 'border-border bg-white text-secondary'}`}
+                  >
+                    <m.icon size={24} className={on ? 'text-brand-dark' : 'text-brand-main'} aria-hidden="true" /> {m.label}
+                  </button>
+                );
+              })}
             </div>
-            <Button className="btn-primary btn-block" loading={sending} disabled={!currentMood} onClick={sendMood}>Gửi phản hồi</Button>
+            <PrimaryButton loading={sending} disabled={!currentMood} onClick={sendMood} className="w-full">
+              Gửi phản hồi
+            </PrimaryButton>
+          </section>
+        </>
+      ) : week.ready ? (
+        <>
+          <section className={`${card} flex flex-col gap-2`}>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-bold text-primary">Mức độ tuân thủ kế hoạch</h2>
+              <span className={badge}>TB {week.avg}%</span>
+            </div>
+            <ComplianceChart days={week.days} selected={date} />
+          </section>
+          <section className="grid grid-cols-3 gap-2">
+            {[
+              { icon: Utensils, label: 'Ngày đã ghi', value: `${week.logged.length}/7` },
+              { icon: Droplets, label: 'Nước TB', value: `${num(week.days.reduce((s, d) => s + d.water, 0) / 7)} ml` },
+              { icon: Footprints, label: 'Vận động', value: `${week.days.reduce((s, d) => s + d.ex, 0)} phút` },
+            ].map((x) => (
+              <div key={x.label} className="flex flex-col items-center gap-1 rounded-xl bg-white p-4 text-center shadow-card">
+                <span className="grid size-9 place-items-center rounded-full bg-brand-light text-brand-dark" aria-hidden="true">
+                  <x.icon size={18} />
+                </span>
+                <b className="font-secondary text-base tabular-nums text-primary">{x.value}</b>
+                <span className="text-xs text-muted">{x.label}</span>
+              </div>
+            ))}
+          </section>
+          <section className={`${card} flex flex-col gap-4`}>
+            <h2 className="text-base font-bold text-primary">Chi tiết theo ngày</h2>
+            {week.days.map((d) => (
+              <div key={d.date} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-secondary">{longDate(d.date)}</span>
+                  <span className="font-secondary tabular-nums text-muted">{num(d.kcal)} kcal</span>
+                </div>
+                <Bar value={d.kcal} max={h.targetKcal} />
+              </div>
+            ))}
           </section>
         </>
       ) : (
-        week.ready ? (
-          <>
-            <section className="card stack">
-              <div className="row-between">
-                <h2 className="title-sm">Mức độ tuân thủ kế hoạch</h2>
-                <span className="badge">TB {week.avg}%</span>
-              </div>
-              <ComplianceChart days={week.days} selected={date} />
-            </section>
-            <section className="grid-3">
-              {[
-                { icon: Utensils, label: 'Ngày đã ghi', value: `${week.logged.length}/7` },
-                { icon: Droplets, label: 'Nước TB', value: `${num(week.days.reduce((s, d) => s + d.water, 0) / 7)} ml` },
-                { icon: Footprints, label: 'Vận động', value: `${week.days.reduce((s, d) => s + d.ex, 0)} phút` },
-              ].map((s) => (
-                <div key={s.label} className="card center stack" style={{ gap: 4, alignItems: 'center', padding: 12 }}>
-                  <span className="icon-tile" style={{ width: 36, height: 36 }}><s.icon size={18} /></span>
-                  <b className="tabular" style={{ fontSize: 15 }}>{s.value}</b>
-                  <span className="xs muted">{s.label}</span>
-                </div>
-              ))}
-            </section>
-            <section className="card stack">
-              <h2 className="title-sm">Chi tiết theo ngày</h2>
-              {week.days.map((d) => (
-                <div key={d.date} className="stack" style={{ gap: 4 }}>
-                  <div className="row-between small"><span>{longDate(d.date)}</span><span className="tabular muted">{num(d.kcal)} kcal</span></div>
-                  <Bar value={d.kcal} max={h.targetKcal} />
-                </div>
-              ))}
-            </section>
-          </>
-        ) : <Skeleton h={300} />
+        <Skeleton h={300} />
       )}
 
-      <section className="stack">
-        <Link to="/track/reminders" className="card card-link">
-          <span className="icon-tile"><Bell size={22} /></span>
-          <span className="grow"><b style={{ display: 'block' }}>Nhắc nhở</b><span className="small muted">Uống nước, uống sữa hạt, vận động mỗi ngày</span></span>
-          <ChevronRight size={20} className="chev" />
+      <PromoCarousel placement="track" />
+
+      <section className="flex flex-col gap-4">
+        <Link to="/track/reminders" className={`${card} flex items-center gap-4 transition active:scale-[0.99]`}>
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-light text-brand-dark" aria-hidden="true">
+            <Bell size={22} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <b className="block text-primary">Nhắc nhở</b>
+            <span className="text-sm text-muted">Uống nước, uống sữa hạt, vận động mỗi ngày</span>
+          </span>
+          <ChevronRight size={20} className="shrink-0 text-divider" aria-hidden="true" />
         </Link>
-        <Link to="/assistant" className="card card-link">
+        <Link to="/assistant" className={`${card} flex items-center gap-4 transition active:scale-[0.99]`}>
           <Nuti size={44} animated={false} />
-          <span className="grow"><b style={{ display: 'block' }}>Hỏi Nuti</b><span className="small muted">Trợ lý dinh dưỡng: sản phẩm, thực đơn và kế hoạch của bạn</span></span>
-          <ChevronRight size={20} className="chev" />
+          <span className="min-w-0 flex-1">
+            <b className="block text-primary">Hỏi Nuti</b>
+            <span className="text-sm text-muted">Trợ lý dinh dưỡng: sản phẩm, thực đơn và kế hoạch của bạn</span>
+          </span>
+          <ChevronRight size={20} className="shrink-0 text-divider" aria-hidden="true" />
         </Link>
       </section>
-
     </main>
   );
 }

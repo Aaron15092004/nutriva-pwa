@@ -1,15 +1,18 @@
-// Ảnh sản phẩm. Với set tự làm, tên dòng hạt được in lên nhãn túi bằng HTML.
+import { productTitle } from '@shared/nutrition.js';
+
+// Ảnh sản phẩm. Gói hạt dùng ảnh túi chung cũ thì in tên dòng hạt lên nhãn túi bằng HTML.
 export default function ProductImage({ product, ratio = '292/252', className = '', style }) {
   const isDiy = product.type === 'diy';
+  const genericBag = isDiy && (!product.image || product.image === '/img/diy-bag.webp'); // ảnh túi chung cũ → in tên lên nhãn
   return (
     <div className={className} style={{ position: 'relative', aspectRatio: ratio, overflow: 'hidden', containerType: 'inline-size', background: 'var(--green-50)', ...style }}>
       <img
         src={product.image}
-        alt={`${isDiy ? 'Set tự làm' : 'Sữa hạt'} ${product.name}`}
+        alt={productTitle(product)}
         loading="lazy"
-        style={{ width: '100%', height: '100%', objectFit: isDiy ? 'fill' : 'cover' }}
+        style={{ width: '100%', height: '100%', objectFit: genericBag ? 'fill' : 'cover' }}
       />
-      {isDiy && (
+      {genericBag && (
         <div
           aria-hidden="true"
           style={{

@@ -41,11 +41,11 @@ export default function Cart() {
   if (!cart.items.length) {
     return (
       <>
-        <TopBar title="Giỏ hàng" />
+        <TopBar title="Giỏ hàng" fallback="/shop" />
         <main className="flex flex-col items-center gap-4 px-6 pb-12 pt-16 text-center">
           <IconCircle icon={ShoppingBag} className="bg-brand-light text-brand-dark" size={80} iconSize={36} />
           <h2 className="text-xl font-extrabold text-primary">Giỏ hàng đang trống</h2>
-          <p className="text-sm text-muted">Khám phá sữa hạt tươi và set tự làm của NUTRIVA.</p>
+          <p className="text-sm text-muted">Khám phá sữa hạt tươi và gói hạt tự nấu của NUTRIVA.</p>
           <Link to="/shop" className="mt-2 inline-flex h-12 items-center rounded-full bg-brand-dark px-6 text-base font-bold text-white hover:bg-brand-deep">
             Đến cửa hàng
           </Link>
@@ -60,9 +60,10 @@ export default function Cart() {
   return (
     <>
       <TopBar
+        fallback="/shop"
         title={`Giỏ hàng (${cart.count})`}
         actions={
-          <button className="icon-btn" aria-label="Xóa toàn bộ giỏ hàng" onClick={() => window.confirm('Xóa toàn bộ giỏ hàng?') && cart.clear()}>
+          <button type="button" className="grid size-11 place-items-center rounded-full text-primary hover:bg-error" aria-label="Xóa toàn bộ giỏ hàng" onClick={() => window.confirm('Xóa toàn bộ giỏ hàng?') && cart.clear()}>
             <Trash2 size={20} />
           </button>
         }

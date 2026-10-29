@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { ChevronRight, Download, Milk, Sprout, CalendarCheck } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ChevronRight, Download, Milk, Sprout, CalendarCheck, QrCode } from 'lucide-react';
 import { Logo } from '../../components/ui.jsx';
 import { Pill } from '../../components/ds/index.jsx';
 import { HeroBackdrop } from '../../components/home/HomeHeader.jsx';
@@ -7,11 +7,12 @@ import { usePwa } from '../../context/PwaContext.jsx';
 
 const FEATURES = [
   { icon: Milk, label: 'Sữa hạt tươi' },
-  { icon: Sprout, label: 'Set tự làm' },
+  { icon: Sprout, label: 'Gói hạt tự nấu' },
   { icon: CalendarCheck, label: 'Kế hoạch riêng' },
 ];
 
 export default function Welcome() {
+  const activation = useLocation().state?.activation; // mở từ QR trên chai khi chưa đăng nhập
   const pwa = usePwa();
   return (
     <main className="relative flex min-h-dvh flex-col overflow-x-clip bg-gradient-to-b from-background via-surface to-background px-4 pb-[calc(24px+var(--safe-b))] pt-[max(16px,env(safe-area-inset-top))]">
@@ -28,12 +29,12 @@ export default function Welcome() {
 
         <div className="overflow-hidden rounded-2xl shadow-float">
           <img
-            src="/img/hero.webp"
-            alt="Chai sữa hạt NUTRIVA bên cạnh hạt điều, hạnh nhân, óc chó"
-            width="378"
-            height="270"
+            src="/img/banners/banner-sua-hat.webp"
+            alt="6 vị sữa hạt tươi NUTRIVA: Mạch Nhiên, Sen Thanh, Sen Cốm, Lứt Thanh, Nâu Mộc, Huyền Mộc"
+            width="1672"
+            height="941"
             fetchpriority="high"
-            className="aspect-[378/270] w-full object-cover"
+            className="aspect-[16/9] w-full object-cover"
           />
         </div>
 
@@ -57,6 +58,11 @@ export default function Welcome() {
           ))}
         </ul>
 
+        {activation && (
+          <p role="status" className="flex items-center gap-2 rounded-lg bg-brand-light px-4 py-3 text-sm font-semibold text-brand-deep">
+            <QrCode size={18} className="shrink-0" aria-hidden="true" /> Đăng nhập hoặc tạo tài khoản — mã trên chai sẽ được kích hoạt ngay sau đó.
+          </p>
+        )}
         <div className="mt-auto flex flex-col gap-2">
           <Link to="/onboarding" className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-brand-dark text-base font-bold text-white transition hover:bg-brand-deep active:scale-[0.98]">
             Bắt đầu <ChevronRight size={20} aria-hidden="true" />

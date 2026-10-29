@@ -16,7 +16,7 @@ export default function ComplianceChart({ days, selected }) {
       <div style={{ position: 'relative', height: H + 36, display: 'grid', gridTemplateColumns: `repeat(${days.length}, 1fr)`, gap: 6, alignItems: 'end', borderBottom: '1px solid var(--border)', paddingTop: 20 }} aria-hidden="true">
         {[50, 100].map((g) => (
           <span key={g} style={{ position: 'absolute', left: 0, right: 0, bottom: 36 + (H * g) / 100, borderTop: '1px dashed #dee6e1' }}>
-            <span className="xs muted" style={{ position: 'absolute', right: 0, top: -16, fontSize: 10 }}>{g}%</span>
+            <span className="text-xs text-muted" style={{ position: 'absolute', right: 0, top: -16, fontSize: 10 }}>{g}%</span>
           </span>
         ))}
         {days.map((d) => {
@@ -26,17 +26,17 @@ export default function ComplianceChart({ days, selected }) {
             <div key={d.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end', position: 'relative' }}
               onMouseEnter={() => setHover(d.date)} onMouseLeave={() => setHover(null)}>
               {hover === d.date && (
-                <span className="xs" style={{ position: 'absolute', bottom: 36 + (H * (v ?? 0)) / 100 + 22, background: 'var(--green-900)', color: '#fff', padding: '4px 8px', borderRadius: 8, whiteSpace: 'nowrap', zIndex: 2 }}>
+                <span className="text-xs" style={{ position: 'absolute', bottom: 36 + (H * (v ?? 0)) / 100 + 22, background: 'var(--green-900)', color: '#fff', padding: '4px 8px', borderRadius: 8, whiteSpace: 'nowrap', zIndex: 2 }}>
                   {v == null ? 'Chưa ghi nhận' : `${v}% • ${d.kcal} kcal`}
                 </span>
               )}
-              {v != null && active && <span className="xs strong tabular" style={{ color: 'var(--text)' }}>{v}%</span>}
+              {v != null && active && <span className="font-secondary text-xs font-bold tabular-nums" style={{ color: 'var(--text)' }}>{v}%</span>}
               <span style={{
                 width: '62%', maxWidth: 28, height: v == null ? 4 : Math.max(4, (H * v) / 100),
                 borderRadius: '4px 4px 0 0', background: v == null ? '#dee6e1' : active ? 'var(--primary)' : 'var(--green-400)',
                 transition: 'height .5s var(--ease), background .2s',
               }} />
-              <span className="xs" style={{ lineHeight: 1.1, textAlign: 'center', color: active ? 'var(--green-800)' : 'var(--muted)', fontWeight: active ? 700 : 500, height: 30 }}>
+              <span className="text-xs" style={{ lineHeight: 1.1, textAlign: 'center', color: active ? 'var(--green-800)' : 'var(--muted)', fontWeight: active ? 700 : 500, height: 30 }}>
                 {weekdayShort(d.date)}<br />{dayNum(d.date)}
               </span>
             </div>

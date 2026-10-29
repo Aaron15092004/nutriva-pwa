@@ -50,9 +50,39 @@ export const INGREDIENTS = [
   { id: 'macca', name: 'Macca' },
   { id: 'hat-thong', name: 'Hạt thông' },
   { id: 'gao-lut-huyet-rong', name: 'Gạo lứt huyết rồng' },
+  { id: 'com', name: 'Cốm' },
 ];
 
 export const ingredientName = (id) => INGREDIENTS.find((i) => i.id === id)?.name ?? id;
+
+// Loại sản phẩm: sữa hạt pha sẵn, set nguyên liệu tự làm, sản phẩm chế biến từ sữa hạt (sữa chua, pudding, granola…)
+export const PRODUCT_TYPES = [
+  { id: 'milk', label: 'Sữa hạt pha sẵn', short: 'Sữa hạt', prefix: 'Sữa hạt' },
+  { id: 'diy', label: 'Gói hạt tự nấu', short: 'Gói tự nấu', prefix: 'Gói hạt tự nấu' },
+  { id: 'treat', label: 'Sản phẩm từ sữa hạt', short: 'Từ sữa hạt', prefix: '' },
+];
+export const productTypeOf = (type) => PRODUCT_TYPES.find((t) => t.id === type) ?? PRODUCT_TYPES[0];
+// Tên đầy đủ: "Sữa hạt Mạch Nhiên", "Gói hạt tự nấu Mạch Nhiên"; sản phẩm chế biến đã có tên riêng ("Sữa chua hạt điều")
+export const productTitle = (p) => [productTypeOf(p?.type).prefix, p?.name].filter(Boolean).join(' ');
+
+// Kênh bán hàng chính thức (link do admin nhập trong Cài đặt)
+export const SALES_CHANNELS = [
+  { id: 'shopee', label: 'Shopee' },
+  { id: 'tiktok', label: 'TikTok Shop' },
+  { id: 'lazada', label: 'Lazada' },
+  { id: 'facebook', label: 'Facebook' },
+  { id: 'zalo', label: 'Zalo' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'website', label: 'Website' },
+];
+// Vị trí hiển thị banner quảng cáo
+export const PROMO_PLACEMENTS = [
+  { id: 'home', label: 'Trang chủ' },
+  { id: 'shop', label: 'Cửa hàng' },
+  { id: 'plan', label: 'Kế hoạch' },
+  { id: 'track', label: 'Theo dõi' },
+  { id: 'interstitial', label: 'Quảng cáo chuyển trang' },
+];
 
 // Tỷ lệ năng lượng mỗi bữa trên tổng calo mục tiêu (min–max)
 export const MEALS = [
@@ -140,8 +170,16 @@ export function mealTargets(kcal) {
   );
 }
 
+// Tuổi hiện tại: ưu tiên năm sinh (tự tăng mỗi năm), dữ liệu cũ chỉ có `age`
+export function profileAge(p, now = new Date()) {
+  if (p?.birthYear) return now.getFullYear() - p.birthYear;
+  return p?.age ?? null;
+}
+
 export function computeHealth(p) {
-  if (!p?.weightKg || !p?.heightCm || !p?.age) return null;
+  if (!p?.weightKg || !p?.heightCm || !profileAge(p)) return null;
+  // Đọc từng trường (không spread): p có thể là subdocument Mongoose — spread chỉ lấy được field nội bộ, không lấy dữ liệu
+  p = { gender: p.gender, age: profileAge(p), heightCm: p.heightCm, weightKg: p.weightKg, waistCm: p.waistCm, activity: p.activity, goal: p.goal };
   const bmi = calcBMI(p.weightKg, p.heightCm);
   const whtr = calcWHtR(p.waistCm, p.heightCm);
   const bmr = calcBMR(p);
@@ -234,6 +272,7 @@ export const PLAN_STYLES = [
   { id: 'high-protein', label: 'Ít tinh bột – Tăng đạm' },
   { id: 'plant', label: 'Thuần chay' },
   { id: 'vietnamese', label: 'Cơm nhà Việt' },
+  { id: 'nut-milk', label: 'Sữa hạt mỗi ngày' },
 ];
 export const PLAN_BANDS = [1200, 1400, 1600, 1800, 2000, 2200, 2400].map((min) => ({
   id: String(min),

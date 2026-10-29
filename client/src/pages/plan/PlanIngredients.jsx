@@ -46,7 +46,7 @@ export default function PlanIngredients() {
 
   return (
     <>
-      <TopBar title="Danh sách nguyên liệu" />
+      <TopBar title="Danh sách nguyên liệu" fallback="/plan" />
       <main className="flex flex-col gap-4 px-4 pb-12 pt-4">
         <div role="tablist" aria-label="Phạm vi" className="grid grid-cols-2 gap-1 rounded-full bg-surface p-1">
           {[

@@ -7,7 +7,10 @@ import { money, dateTime, longDate } from '../../lib/format.js';
 import { useCart } from '../../context/CartContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { TopBar, Skeleton, ErrorNote } from '../../components/ui.jsx';
+import { PrimaryButton } from '../../components/ds/form.jsx';
+import { cx } from '../../components/ds/index.jsx';
 import ProductImage from '../../components/ProductImage.jsx';
+import { productTitle } from '@shared/nutrition.js';
 
 const STEPS = [
   { id: 'confirmed', label: 'Đã xác nhận', icon: Check },
@@ -17,6 +20,26 @@ const STEPS = [
 ];
 
 export const STATUS_LABEL = { confirmed: 'Đã xác nhận', preparing: 'Đang chuẩn bị', shipping: 'Đang giao', done: 'Hoàn tất', cancelled: 'Đã hủy' };
+const TONE = {
+  confirmed: 'bg-info text-dinner-hint',
+  preparing: 'bg-warning text-snacks-hint',
+  shipping: 'bg-warning text-snacks-hint',
+  done: 'bg-brand-light text-brand-deep',
+  cancelled: 'bg-surface text-muted',
+  paid: 'bg-brand-light text-brand-deep',
+  muted: 'bg-surface text-muted',
+};
+export function StatusBadge({ status, children }) {
+  return <span className={cx('shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold', TONE[status] ?? TONE.muted)}>{children}</span>;
+}
+
+const Row = ({ label, children }) => (
+  <div className="flex min-h-8 items-center justify-between gap-4">
+    <span className="text-sm text-muted">{label}</span>
+    {children}
+  </div>
+);
+const card = 'rounded-xl bg-white p-4 shadow-card';
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -29,6 +52,7 @@ export default function OrderDetail() {
   const cfg = useApi('/shop/config');
   const bank = cfg.data?.bank;
   const [copied, setCopied] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const o = data?.order;
 
   const copy = async () => {
@@ -48,86 +72,104 @@ export default function OrderDetail() {
 
   const cancel = async () => {
     if (!window.confirm('Bạn chắc chắn muốn hủy đơn hàng này?')) return;
+    setCancelling(true);
     try {
       setData(await api.post(`/orders/${id}/cancel`));
       toast('Đã hủy đơn hàng');
     } catch (e) {
       toast(e.message, 'error');
+    } finally {
+      setCancelling(false);
     }
   };
 
   const stepIdx = o ? STEPS.findIndex((s) => s.id === o.status) : -1;
+  const payLabel = o?.paymentStatus === 'paid' ? 'Đã thanh toán' : o?.paymentStatus === 'refunded' ? 'Đã hoàn tiền' : 'Chưa thanh toán';
 
   return (
     <>
-      <TopBar title="Chi tiết đơn hàng" onBack={isNew ? () => navigate('/shop') : undefined} />
-      <main className="page no-nav stack-lg">
+      <TopBar title="Chi tiết đơn hàng" fallback="/orders" onBack={isNew ? () => navigate('/shop') : undefined} />
+      <main className="flex flex-col gap-6 px-4 pb-[calc(32px+var(--safe-b))] pt-2">
         {loading && <Skeleton h={480} />}
         <ErrorNote error={error} />
         {o && (
           <>
             {isNew && (
-              <section className="card center stack" style={{ alignItems: 'center', background: 'linear-gradient(160deg, var(--green-50), #fff)' }}>
-                <CheckCircle2 size={56} color="var(--primary)" />
-                <h2 className="title-lg">Đặt hàng thành công!</h2>
-                <p className="muted small">Cảm ơn bạn đã chọn NUTRIVA.</p>
+              <section className="flex flex-col items-center gap-2 rounded-xl bg-gradient-to-b from-brand-light to-white p-6 text-center shadow-card">
+                <CheckCircle2 size={56} className="text-brand-dark" aria-hidden="true" />
+                <h2 className="font-display text-2xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">Đặt hàng thành công!</h2>
+                <p className="text-sm text-muted">Cảm ơn bạn đã chọn NUTRIVA.</p>
               </section>
             )}
 
-            <section className="card stack" style={{ gap: 6 }}>
-              <div className="row-between">
-                <span className="muted small">Mã đơn hàng</span>
-                <button className="row strong" onClick={copy} style={{ border: 0, background: 'none', gap: 6, minHeight: 44 }} aria-label="Sao chép mã đơn">
-                  {o.code} {copied ? <Check size={16} color="var(--primary)" /> : <Copy size={16} />}
+            <section className={cx(card, 'flex flex-col gap-1')}>
+              <Row label="Mã đơn hàng">
+                <button type="button" className="inline-flex min-h-11 items-center gap-2 font-bold text-primary" onClick={copy} aria-label={`Sao chép mã đơn ${o.code}`}>
+                  {o.code} {copied ? <Check size={16} className="text-brand-dark" aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
                 </button>
-              </div>
-              <div className="row-between"><span className="muted small">Tổng tiền</span><b className="title-md tabular">{money(o.total)}</b></div>
-              <div className="row-between"><span className="muted small">Ngày đặt hàng</span><span className="small">{dateTime(o.createdAt)}</span></div>
-              <div className="row-between">
-                <span className="muted small">Thanh toán</span>
-                <span className="small row" style={{ gap: 6 }}>
+              </Row>
+              <Row label="Tổng tiền">
+                <b className="font-secondary text-lg tabular-nums text-primary">{money(o.total)}</b>
+              </Row>
+              <Row label="Ngày đặt hàng">
+                <span className="text-sm text-secondary">{dateTime(o.createdAt)}</span>
+              </Row>
+              <Row label="Thanh toán">
+                <span className="flex items-center gap-2 text-sm text-secondary">
                   {o.payment === 'cod' ? 'Khi nhận hàng' : 'Chuyển khoản'}
-                  <span className={`badge ${o.paymentStatus === 'paid' ? 'good' : 'gray'}`}>{o.paymentStatus === 'paid' ? 'Đã thanh toán' : o.paymentStatus === 'refunded' ? 'Đã hoàn tiền' : 'Chưa thanh toán'}</span>
+                  <StatusBadge status={o.paymentStatus === 'paid' ? 'paid' : 'muted'}>{payLabel}</StatusBadge>
                 </span>
-              </div>
-              {o.source === 'subscription' && <div className="row-between"><span className="muted small">Nguồn</span><span className="badge blue">Gói định kỳ</span></div>}
+              </Row>
+              {o.source === 'subscription' && (
+                <Row label="Nguồn">
+                  <StatusBadge status="confirmed">Gói định kỳ</StatusBadge>
+                </Row>
+              )}
             </section>
 
             {o.payment === 'bank' && o.status !== 'cancelled' && o.paymentStatus !== 'paid' && bank && (
-              <section className="card stack" style={{ alignItems: 'center', textAlign: 'center' }}>
-                <h2 className="title-sm row" style={{ gap: 6 }}><Landmark size={20} color="var(--primary-600)" /> Chuyển khoản để hoàn tất</h2>
+              <section className={cx(card, 'flex flex-col items-center gap-4 text-center')}>
+                <h2 className="flex items-center gap-2 text-base font-bold text-primary">
+                  <Landmark size={20} className="text-brand-main" aria-hidden="true" /> Chuyển khoản để hoàn tất
+                </h2>
                 <img
                   src={`https://img.vietqr.io/image/${encodeURIComponent(bank.bankId)}-${encodeURIComponent(bank.accountNo)}-compact2.png?amount=${o.total}&addInfo=${encodeURIComponent(o.code)}&accountName=${encodeURIComponent(bank.accountName)}`}
                   alt={`Mã QR chuyển khoản ${money(o.total)} cho đơn ${o.code}`}
                   width="240"
                   height="280"
-                  style={{ width: 240, maxWidth: '100%', height: 'auto', borderRadius: 12, background: '#fff' }}
+                  className="h-auto w-60 max-w-full rounded-lg bg-white"
                 />
-                <div className="small">
-                  <div>{bank.bankId} • <b>{bank.accountNo}</b></div>
-                  <div>{bank.accountName}</div>
-                  <div>Số tiền: <b>{money(o.total)}</b> • Nội dung: <b>{o.code}</b></div>
+                <div className="text-sm text-secondary">
+                  <p>
+                    {bank.bankId} • <b>{bank.accountNo}</b>
+                  </p>
+                  <p>{bank.accountName}</p>
+                  <p>
+                    Số tiền: <b>{money(o.total)}</b> • Nội dung: <b>{o.code}</b>
+                  </p>
                 </div>
-                <p className="xs muted">Đơn sẽ được xác nhận đã thanh toán sau khi NUTRIVA kiểm tra giao dịch.</p>
+                <p className="text-xs text-muted">Đơn sẽ được xác nhận đã thanh toán sau khi NUTRIVA kiểm tra giao dịch.</p>
               </section>
             )}
 
-            <section className="card stack">
-              <h2 className="title-sm">Trạng thái đơn hàng</h2>
+            <section className={cx(card, 'flex flex-col gap-4')}>
+              <h2 className="text-base font-bold text-primary">Trạng thái đơn hàng</h2>
               {o.status === 'cancelled' ? (
-                <div className="notice danger"><XCircle size={18} /> Đơn hàng đã được hủy.</div>
+                <p className="flex items-center gap-2 rounded-lg bg-error px-4 py-3 text-sm font-semibold text-warm-dark">
+                  <XCircle size={18} aria-hidden="true" /> Đơn hàng đã được hủy.
+                </p>
               ) : (
-                <ol className="grid-4" style={{ listStyle: 'none', margin: 0, padding: 0, position: 'relative' }}>
+                <ol className="grid grid-cols-4 gap-1">
                   {STEPS.map((s, i) => {
                     const reached = i <= stepIdx;
                     const at = o.history.find((h) => h.status === s.id)?.at;
                     return (
-                      <li key={s.id} className="center stack" style={{ gap: 4, alignItems: 'center' }} aria-current={i === stepIdx ? 'step' : undefined}>
-                        <span style={{ width: 40, height: 40, borderRadius: 99, display: 'grid', placeItems: 'center', background: reached ? 'var(--primary)' : '#eff3f0', color: reached ? '#fff' : 'var(--subtle)', boxShadow: i === stepIdx ? '0 0 0 4px var(--green-100)' : 'none' }}>
+                      <li key={s.id} className="flex flex-col items-center gap-1 text-center" aria-current={i === stepIdx ? 'step' : undefined}>
+                        <span className={cx('grid size-10 place-items-center rounded-full', reached ? 'bg-brand-dark text-white' : 'bg-surface text-subtle', i === stepIdx && 'ring-4 ring-brand-soft')} aria-hidden="true">
                           <s.icon size={18} />
                         </span>
-                        <span className="xs" style={{ fontWeight: reached ? 700 : 500, color: reached ? 'var(--green-800)' : 'var(--muted)' }}>{s.label}</span>
-                        {at && <span className="xs muted">{dateTime(at).split(' ')[0]}</span>}
+                        <span className={cx('text-xs', reached ? 'font-bold text-brand-deep' : 'font-medium text-muted')}>{s.label}</span>
+                        {at && <span className="text-xs text-muted">{dateTime(at).split(' ')[0]}</span>}
                       </li>
                     );
                   })}
@@ -135,43 +177,68 @@ export default function OrderDetail() {
               )}
             </section>
 
-            <section className="card tint row">
-              <span className="icon-tile"><CalendarDays size={22} /></span>
-              <div>
-                <div className="small muted">{o.delivery.method === 'home' ? 'Dự kiến giao hàng' : 'Nhận tại cửa hàng'}</div>
-                <b>{longDate(o.delivery.date)}</b>
-                <div className="small">{o.delivery.slot}</div>
-                {o.delivery.method === 'home' && <div className="xs muted">{o.address.name} • {o.address.phone} • {o.address.line}</div>}
+            <section className="flex items-start gap-4 rounded-xl border border-border bg-brand-light p-4">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-brand-dark" aria-hidden="true">
+                <CalendarDays size={22} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm text-muted">{o.delivery.method === 'home' ? 'Dự kiến giao hàng' : 'Nhận tại cửa hàng'}</p>
+                <b className="text-primary">{longDate(o.delivery.date)}</b>
+                <p className="text-sm text-secondary">{o.delivery.slot}</p>
+                {o.delivery.method === 'home' && (
+                  <p className="text-xs text-muted">
+                    {o.address.name} • {o.address.phone} • {o.address.line}
+                  </p>
+                )}
               </div>
             </section>
 
-            <section className="stack">
-              <h2 className="title-sm">Sản phẩm trong đơn hàng</h2>
+            <section className="flex flex-col gap-2">
+              <h2 className="text-base font-bold text-primary">Sản phẩm trong đơn hàng</h2>
               {o.items.map((i) => (
-                <div key={`${i.slug}${i.sweetness}`} className="card row">
-                  <ProductImage product={i} style={{ width: 56, borderRadius: 12, flex: 'none' }} />
-                  <div className="grow">
-                    <b style={{ fontSize: 14 }}>{i.type === 'diy' ? 'Set tự làm ' : 'Sữa hạt '}{i.name}</b>
-                    <div className="xs muted">{i.size}</div>
+                <div key={`${i.slug}${i.sweetness}`} className={cx(card, 'flex items-center gap-4')}>
+                  <ProductImage product={i} className="w-14 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1">
+                    <b className="block text-sm text-primary">
+                      {productTitle(i)}
+                    </b>
+                    <span className="text-xs text-muted">{i.size}</span>
                   </div>
-                  <span className="small muted">×{i.qty}</span>
-                  <b className="tabular small">{money(i.price * i.qty)}</b>
+                  <span className="text-sm text-muted">×{i.qty}</span>
+                  <b className="font-secondary text-sm tabular-nums text-primary">{money(i.price * i.qty)}</b>
                 </div>
               ))}
-              <div className="card stack" style={{ gap: 6 }}>
-                <div className="row-between small"><span className="muted">Tạm tính</span><span className="tabular">{money(o.subtotal)}</span></div>
-                {o.discount > 0 && <div className="row-between small"><span className="muted">Giảm giá</span><span className="tabular green">−{money(o.discount)}</span></div>}
-                <div className="row-between small"><span className="muted">Phí giao hàng</span><span className="tabular">{o.shippingFee ? money(o.shippingFee) : 'Miễn phí'}</span></div>
-                <div className="row-between"><b>Tổng cộng</b><b className="green tabular">{money(o.total)}</b></div>
+              <div className={cx(card, 'flex flex-col gap-1 text-sm')}>
+                <Row label="Tạm tính">
+                  <span className="font-secondary tabular-nums">{money(o.subtotal)}</span>
+                </Row>
+                {o.discount > 0 && (
+                  <Row label="Giảm giá">
+                    <span className="font-secondary tabular-nums text-brand-dark">−{money(o.discount)}</span>
+                  </Row>
+                )}
+                <Row label="Phí giao hàng">
+                  <span className="font-secondary tabular-nums">{o.shippingFee ? money(o.shippingFee) : 'Miễn phí'}</span>
+                </Row>
+                <div className="flex items-center justify-between border-t border-surface pt-2">
+                  <b className="text-primary">Tổng cộng</b>
+                  <b className="font-secondary tabular-nums text-brand-dark">{money(o.total)}</b>
+                </div>
               </div>
             </section>
 
-            <div className="grid-2">
-              <Link to="/me/support" className="btn btn-outline"><Headphones size={18} /> Liên hệ hỗ trợ</Link>
-              <button className="btn btn-primary" onClick={rebuy}><RotateCcw size={18} /> Mua lại</button>
+            <div className="grid grid-cols-2 gap-2">
+              <Link to="/me/support" className="inline-flex h-14 items-center justify-center gap-2 rounded-full border-2 border-brand-dark bg-white px-4 font-bold text-brand-dark">
+                <Headphones size={18} aria-hidden="true" /> Hỗ trợ
+              </Link>
+              <PrimaryButton onClick={rebuy}>
+                <RotateCcw size={18} aria-hidden="true" /> Mua lại
+              </PrimaryButton>
             </div>
             {o.status === 'confirmed' && (
-              <button className="btn btn-danger" onClick={cancel}><XCircle size={18} /> Hủy đơn hàng</button>
+              <PrimaryButton variant="soft" loading={cancelling} onClick={cancel} className="w-full !text-warm-dark">
+                <XCircle size={18} aria-hidden="true" /> Hủy đơn hàng
+              </PrimaryButton>
             )}
           </>
         )}

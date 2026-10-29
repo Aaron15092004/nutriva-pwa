@@ -1,8 +1,14 @@
 import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import { InstallGuide, Logo } from './components/ui.jsx';
 import BottomNav from './components/BottomNav.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import AppBanners from './components/AppBanners.jsx';
+import PromoPopup from './components/promo/PromoPopup.jsx';
+import AdInterstitial from './components/promo/AdInterstitial.jsx';
+import Paywall from './components/membership/Paywall.jsx';
+import { track, trackOpen } from './lib/track.js';
 import Home from './pages/Home.jsx';
 import Welcome from './pages/onboarding/Welcome.jsx';
 
@@ -14,6 +20,9 @@ const page = (load) => {
 };
 const Onboarding = page(() => import('./pages/onboarding/Onboarding.jsx'));
 const Login = page(() => import('./pages/onboarding/Login.jsx'));
+const ForgotPassword = page(() => import('./pages/onboarding/ForgotPassword.jsx'));
+const ResetPassword = page(() => import('./pages/onboarding/ResetPassword.jsx'));
+const Membership = page(() => import('./pages/me/Membership.jsx'));
 const Plan = page(() => import('./pages/plan/Plan.jsx'));
 const PlanAdjust = page(() => import('./pages/plan/PlanAdjust.jsx'));
 const PlanDetail = page(() => import('./pages/plan/PlanDetail.jsx'));
@@ -82,27 +91,76 @@ function RouteFallback() {
   );
 }
 
-// Nội dung trang mờ dần khi chuyển route (chỉ opacity → không ảnh hưởng thanh fixed)
+// Thống kê: các màn hình chính được mở (đo tính năng nào hay dùng)
+const VIEW_EVENTS = { '/plan': 'plan.view', '/shop': 'shop.view', '/assistant': 'assistant.open' };
+function useTrackViews() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    trackOpen();
+    if (VIEW_EVENTS[pathname]) track(VIEW_EVENTS[pathname]);
+  }, [pathname]);
+}
+
+// Nội dung trang mờ dần khi chuyển route (chỉ opacity → không ảnh hưởng thanh fixed).
+// Lỗi hiển thị trong 1 trang chỉ làm hỏng trang đó (không trắng cả app); chuyển trang là thử lại.
 function Animated() {
   const { pathname } = useLocation();
   return (
     <div key={pathname} className="page-fade">
-      <Suspense fallback={<RouteFallback />}>
-        <Outlet />
-      </Suspense>
+      <ErrorBoundary resetKey={pathname}>
+        <Suspense fallback={<RouteFallback />}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }
 
+function Anyone() {
+  return <Animated />;
+}
+
+const PENDING_CODE = 'nutriva_pending_code';
+
 function Private({ withNav }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  // Quét QR trên chai khi chưa đăng nhập → sau khi đăng nhập/đăng ký thì kích hoạt luôn
+  useEffect(() => {
+    if (!user) return;
+    let code = null;
+    try {
+      code = sessionStorage.getItem(PENDING_CODE);
+      if (code) sessionStorage.removeItem(PENDING_CODE);
+    } catch {
+      /* bộ nhớ bị chặn */
+    }
+    if (code) navigate(`/me/membership?code=${encodeURIComponent(code)}`, { replace: true });
+  }, [user, navigate]);
   if (!user) return <Navigate to="/welcome" replace />;
   return (
     <>
       <Animated />
       {withNav && <BottomNav />}
+      {withNav && <PromoPopup />}
+      <AdInterstitial />
+      <Paywall />
     </>
   );
+}
+
+// Link in trong QR: /activate?code=XXXXXXXXXX (mở bằng camera điện thoại)
+function ActivateLink() {
+  const { user } = useAuth();
+  const [params] = useSearchParams();
+  const code = params.get('code') ?? '';
+  if (user) return <Navigate to={`/me/membership?code=${encodeURIComponent(code)}`} replace />;
+  try {
+    if (code) sessionStorage.setItem(PENDING_CODE, code);
+  } catch {
+    /* bộ nhớ bị chặn */
+  }
+  return <Navigate to="/welcome" replace state={{ activation: true }} />;
 }
 
 function PublicOnly() {
@@ -115,6 +173,7 @@ export default function App() {
   const { ready, user } = useAuth();
   const { pathname } = useLocation();
   usePreloadPages(ready && Boolean(user));
+  useTrackViews();
 
   if (!ready) return <Splash />;
 
@@ -123,9 +182,12 @@ export default function App() {
     if (!user) return <Navigate to="/login" replace state={{ from: pathname }} />;
     if (user.role !== 'admin') return <Navigate to="/" replace />;
     return (
-      <Suspense fallback={<Splash />}>
-        <AdminApp />
-      </Suspense>
+      <ErrorBoundary resetKey={pathname}>
+        <Suspense fallback={<Splash />}>
+          <AdminApp />
+        </Suspense>
+        <AppBanners />
+      </ErrorBoundary>
     );
   }
 
@@ -137,6 +199,13 @@ export default function App() {
           <Route path="/welcome" element={<Welcome />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+        </Route>
+
+        {/* Link đặt lại mật khẩu trong email: mở được cả khi đang đăng nhập */}
+        <Route element={<Anyone />}>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/activate" element={<ActivateLink />} />
         </Route>
 
         <Route element={<Private withNav />}>
@@ -169,11 +238,13 @@ export default function App() {
           <Route path="/me/subscriptions" element={<Subscriptions />} />
           <Route path="/me/privacy" element={<Privacy />} />
           <Route path="/me/support" element={<Support />} />
+          <Route path="/me/membership" element={<Membership />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <InstallGuide />
+      <AppBanners />
     </div>
   );
 }

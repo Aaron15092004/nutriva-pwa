@@ -1,4 +1,5 @@
-import { Product, Food, Dish, Coupon, Setting, User, Activity, MealPlan } from './models/index.js';
+import { Product, Food, Dish, Coupon, Setting, User, Activity, MealPlan, Promo } from './models/index.js';
+import { TREATS, PROMOS, DEFAULT_CHANNELS, DEFAULT_POPUP } from './data/milk-extras.js';
 import { ACTIVITIES } from './data/activities.js';
 import { PRODUCTS, SUBSCRIPTION_PLANS, DIY_STEPS, SHIPPING_FEE, FREE_SHIP_FROM } from './data/products.js';
 import { FOODS } from './data/foods.js';
@@ -9,8 +10,9 @@ import { buildMealPlans } from './data/meal-plans.js';
 // Nạp dữ liệu mẫu CHỈ khi collection còn trống — không ghi đè thay đổi của admin.
 export async function seedIfEmpty() {
   if (!(await Product.exists({}))) {
-    await Product.insertMany(PRODUCTS.map((p, i) => ({ ...p, sort: i, steps: p.type === 'diy' ? DIY_STEPS : [] })));
-    console.log(`[seed] ${PRODUCTS.length} sản phẩm`);
+    const all = [...PRODUCTS, ...TREATS];
+    await Product.insertMany(all.map((p, i) => ({ ...p, sort: i, steps: p.type === 'diy' ? DIY_STEPS : [] })));
+    console.log(`[seed] ${all.length} sản phẩm`);
   }
   if (!(await Food.exists({}))) {
     await Food.insertMany(FOODS);
@@ -55,8 +57,15 @@ export async function seedIfEmpty() {
       store: { name: 'NUTRIVA', address: '', phone: '' },
       subscriptionPlans: SUBSCRIPTION_PLANS,
       diySteps: DIY_STEPS,
+      channels: DEFAULT_CHANNELS,
+      popup: DEFAULT_POPUP,
     });
     console.log('[seed] cấu hình mặc định');
+  }
+
+  if (!(await Promo.exists({}))) {
+    await Promo.insertMany(PROMOS);
+    console.log(`[seed] ${PROMOS.length} banner quảng cáo`);
   }
 
   // Thăng quyền admin cho các email trong ADMIN_EMAILS (nếu tài khoản đã tồn tại)

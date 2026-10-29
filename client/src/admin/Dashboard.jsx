@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Receipt, Wallet, Clock, Headphones, RefreshCw, Landmark } from 'lucide-react';
+import { Users, Receipt, Wallet, Clock, Headphones, RefreshCw, Landmark, PackageX, CalendarClock, BadgeCheck } from 'lucide-react';
+import { productTitle } from '@shared/nutrition.js';
 import { useApi } from '../lib/useApi.js';
 import { ErrorNote, Skeleton } from '../components/ui.jsx';
 import { vnd } from './kit.jsx';
@@ -64,6 +65,11 @@ export default function Dashboard() {
             <Stat icon={Clock} label="Chờ xác nhận / chuẩn bị" value={s.pending} to="/admin/orders" />
             <Stat icon={Landmark} label="Chuyển khoản chưa xác nhận" value={s.unpaidBank} to="/admin/orders" />
             <Stat icon={Headphones} label="Yêu cầu hỗ trợ mới" value={s.openSupport} to="/admin/support" />
+            <Stat icon={BadgeCheck} label="Khách còn hạn gói" value={s.activeMembers ?? 0} sub="Đang mở kế hoạch & nhắc nhở" to="/admin/activation" />
+          </div>
+          <div className="a-grid-4">
+            <Stat icon={PackageX} label="Sản phẩm sắp hết / hết hàng" value={s.lowStock ?? 0} sub="Theo ngưỡng cảnh báo từng sản phẩm" to="/admin/inventory" />
+            <Stat icon={CalendarClock} label="Lô sắp hết hạn (≤ 2 ngày)" value={s.expiringLots ?? 0} sub="Gồm cả lô đã quá hạn còn tồn" to="/admin/inventory" />
           </div>
           <div className="a-grid-2" style={{ gridTemplateColumns: '2fr 1fr' }}>
             <section className="a-card">
@@ -75,7 +81,7 @@ export default function Dashboard() {
               {!s.topProducts.length && <p className="small muted">Chưa có đơn hàng.</p>}
               {s.topProducts.map((p, i) => (
                 <div key={`${p._id.slug}`} className="row-between small">
-                  <span><b>{i + 1}.</b> {p._id.type === 'diy' ? 'Set ' : 'Sữa '}{p.name}</span>
+                  <span><b>{i + 1}.</b> {productTitle({ type: p._id.type, name: p.name })}</span>
                   <span className="tabular muted" style={{ whiteSpace: 'nowrap' }}>{p.qty} • {vnd(p.revenue)}</span>
                 </div>
               ))}

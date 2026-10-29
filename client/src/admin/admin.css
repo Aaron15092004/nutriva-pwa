@@ -41,7 +41,7 @@
 .a-table tbody tr { cursor: pointer; transition: background 0.12s; }
 .a-table tbody tr:hover { background: #f2f7e7; }
 .a-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.a-table img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: var(--green-50); }
+.a-table img { width: 44px; height: 44px; max-width: none; border-radius: 10px; object-fit: cover; background: var(--green-50); }
 .a-empty { padding: 40px; text-align: center; color: var(--muted); }
 
 .a-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 4px; font-size: 13px; color: var(--muted); }

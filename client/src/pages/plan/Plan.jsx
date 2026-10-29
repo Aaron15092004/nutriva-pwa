@@ -5,7 +5,7 @@ import { PLAN_BANDS, bandFor } from '@shared/nutrition.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApi } from '../../lib/useApi.js';
-import { api } from '../../lib/api.js';
+import { logPlanItem, logPlanMeal } from '../../lib/logs.js';
 import { today, addDays, longDate } from '../../lib/format.js';
 import { Skeleton, ErrorNote } from '../../components/ui.jsx';
 import { CircleButton, IconCircle, SectionHeader, cx } from '../../components/ds/index.jsx';
@@ -13,6 +13,9 @@ import { ChipTabs } from '../../components/ds/charts.jsx';
 import { HeroBackdrop } from '../../components/home/HomeHeader.jsx';
 import { sumLog } from '../../components/meals.js';
 import { DaySummary, MealBlock, PlanItemRow, PlanCard, PlanMiniCard, kcalRange } from '../../components/plan/PlanParts.jsx';
+import PromoCarousel from '../../components/promo/PromoCarousel.jsx';
+import { MilkTodayCard, TreatStrip } from '../../components/promo/MilkToday.jsx';
+import { LockedCard } from '../../components/membership/Paywall.jsx';
 
 const TABS = [
   { id: 'mine', label: 'Thực đơn của bạn' },
@@ -30,15 +33,6 @@ const dayLabel = (d) => {
 
 // Đã ghi món này vào nhật ký chưa (cùng tên; thực phẩm thì cùng định lượng)
 const isLogged = (log, it) => (log?.meals?.[it.meal] ?? []).some((e) => e.name === it.name && (it.kind !== 'food' || e.grams === it.grams));
-
-// Ghi một món của thực đơn vào nhật ký
-export async function logPlanItem(date, it) {
-  const body =
-    it.kind === 'food'
-      ? { foodId: it.food, grams: it.grams, name: it.name }
-      : { name: it.name, grams: Math.round((it.portion ?? 1) * 100), kcal: it.kcal, protein: it.protein, carb: it.carb, fat: it.fat };
-  return (await api.post(`/logs/${date}/meals/${it.meal}`, body)).log;
-}
 
 function DateNav({ date, onChange }) {
   return (
@@ -84,9 +78,30 @@ function MyMenu({ date, setDate, onExplore }) {
     }
   };
 
+  const onLogMeal = async (m, todo) => {
+    setBusy(`${m.meal}-all`);
+    try {
+      logApi.setData({ log: await logPlanMeal(date, m.meal, todo) });
+      toast(`Đã ghi ${todo.length} món vào ${m.label.toLowerCase()}`);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (menu.loading && !menu.data) return <Skeleton h={480} />;
   if (menu.error) return <ErrorNote error={menu.error} />;
   const { plan, day, dayIndex } = menu.data;
+  if (plan && menu.data.locked)
+    return (
+      <div className="flex flex-col gap-6">
+        <PlanMiniCard plan={plan} note={`Ngày ${dayIndex + 1}/${plan.dayCount} • ${kcalRange(plan)}`} />
+        <DateNav date={date} onChange={setDate} />
+        <LockedCard title={`Ngày ${dayIndex + 1}/${plan.dayCount} dành cho thành viên`} text={`Bạn đang dùng thử ${menu.data.freeDays} ngày đầu. Quét mã trên chai sữa hạt để xem trọn kế hoạch.`} />
+        <MilkTodayCard date={date} log={log} onLog={(l) => logApi.setData({ log: l })} />
+      </div>
+    );
 
   if (!plan) {
     const d = auto.data?.day;
@@ -106,11 +121,14 @@ function MyMenu({ date, setDate, onExplore }) {
           </button>
         </section>
         <SectionHeader title="Gợi ý tự động của NUTRIVA" />
-        {auto.loading || !d ? (
+        {auto.data?.locked ? (
+          <LockedCard title="Gợi ý thực đơn hôm nay đã khóa" text="Đã hết thời gian dùng thử. Quét mã trên chai sữa hạt để tiếp tục nhận thực đơn mỗi ngày." />
+        ) : auto.loading || !d ? (
           <Skeleton h={360} />
         ) : (
           <>
             <DaySummary kcal={d.totalKcal} {...macroTotal(d.meals.map((m) => m.item))} eaten={sumLog(log).kcal} />
+            <MilkTodayCard date={date} log={log} onLog={(l) => logApi.setData({ log: l })} />
             {d.meals.map((m) => {
               const it = { ...m.item, meal: m.meal, kind: 'dish', grams: null };
               const key = `${m.meal}-auto`;
@@ -135,16 +153,33 @@ function MyMenu({ date, setDate, onExplore }) {
       <PlanMiniCard plan={plan} note={`Ngày ${dayIndex + 1}/${plan.dayCount} • ${kcalRange(plan)}`} />
       <DateNav date={date} onChange={setDate} />
       <DaySummary kcal={day.kcal} protein={day.protein} carb={day.carb} fat={day.fat} eaten={sumLog(log).kcal} />
+      <MilkTodayCard date={date} log={log} onLog={(l) => logApi.setData({ log: l })} />
       {day.meals
         .filter((m) => m.items.length)
-        .map((m) => (
-          <MealBlock key={m.meal} meal={m.meal} label={m.label} kcal={m.kcal}>
-            {m.items.map((it, i) => {
-              const key = `${m.meal}-${i}`;
-              return <PlanItemRow key={key} item={it} action={<LogButton it={it} logged={isLogged(log, it)} busy={busy === key} onLog={() => onLog(it, key)} />} />;
-            })}
-          </MealBlock>
-        ))}
+        .map((m) => {
+          const todo = m.items.filter((it) => !it.missing && !isLogged(log, it));
+          return (
+            <MealBlock
+              key={m.meal}
+              meal={m.meal}
+              label={m.label}
+              kcal={m.kcal}
+              footer={
+                todo.length > 1 && (
+                  <button type="button" disabled={Boolean(busy)} onClick={() => onLogMeal(m, todo)} className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-full bg-brand-light px-4 text-sm font-bold text-brand-deep transition hover:bg-brand-soft disabled:opacity-50">
+                    <Check size={16} aria-hidden="true" /> {busy === `${m.meal}-all` ? 'Đang ghi…' : `Đã ăn cả bữa — ghi ${todo.length} món`}
+                  </button>
+                )
+              }
+            >
+              {m.items.map((it, i) => {
+                const key = `${m.meal}-${i}`;
+                return <PlanItemRow key={key} item={it} action={<LogButton it={it} logged={isLogged(log, it)} busy={busy === key} onLog={() => onLog(it, key)} />} />;
+              })}
+            </MealBlock>
+          );
+        })}
+      <TreatStrip title="Bữa phụ ngon từ sữa hạt" id="plan-treats" />
     </div>
   );
 }
@@ -162,8 +197,28 @@ function Explore() {
   if (error) return <ErrorNote error={error} />;
   const b = PLAN_BANDS.find((x) => x.id === band);
   const list = data.plans.filter((p) => p.kcalMin >= b.min && p.kcalMin < b.max);
+  // Kế hoạch "Sữa hạt mỗi ngày": mức calo gần mục tiêu nhất lên đầu
+  const milkPlans = data.plans
+    .filter((p) => p.style === 'nut-milk')
+    .sort((x, y) => Math.abs(x.kcalMin - mine.min) - Math.abs(y.kcalMin - mine.min));
   return (
     <div className="flex flex-col gap-6">
+      <PromoCarousel placement="plan" />
+      {milkPlans.length > 0 && (
+        <section aria-labelledby="milk-plans" className="flex flex-col gap-4">
+          <div>
+            <SectionHeader id="milk-plans" title="Sữa hạt mỗi ngày" />
+            <p className="text-sm text-muted">Bữa sáng & bữa phụ luôn có sữa hạt NUTRIVA — yến mạch ngâm, sinh tố, pudding hạt chia…</p>
+          </div>
+          <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {milkPlans.map((p, i) => (
+              <div key={p.id} className="flex w-72 shrink-0 snap-start">
+                <PlanCard plan={p} badge={i === 0 ? 'Hợp mức calo của bạn' : null} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {data.current && (
         <section aria-labelledby="cur-plan" className="flex flex-col gap-4">
           <SectionHeader id="cur-plan" title="Kế hoạch hiện tại của bạn" />

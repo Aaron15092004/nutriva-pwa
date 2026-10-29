@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { MealPlan } from '../models/index.js';
-import { loadFoods, loadDishes } from '../services/catalog.js';
-import { ah, requireAuth, HttpError } from '../middleware/auth.js';
+import { loadAllFoods, loadAllDishes } from '../services/catalog.js';
+import { ah, requireAuth, HttpError, MembershipRequired } from '../middleware/auth.js';
+import { hasAccess, membershipConfig } from '../services/membership.js';
 import { publicUser } from './auth.js';
 import { makeCtx, planSummary, planDetail, resolveDay, ingredientsFor, planDayIndex, cleanDays } from '../services/meal-plans.js';
 
@@ -11,8 +12,15 @@ const router = Router();
 router.use(requireAuth);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Chưa kích hoạt gói: chỉ xem được N ngày đầu của kế hoạch 7 ngày (N = freePlanDays)
+async function freeDays(user) {
+  return (await hasAccess(user)) ? Infinity : (await membershipConfig()).freePlanDays;
+}
+const lockDays = (detail, n) =>
+  n === Infinity ? detail : { ...detail, lockedFrom: n, days: detail.days.map((d) => (d.index < n ? d : { index: d.index, locked: true, meals: [], kcal: 0, protein: 0, carb: 0, fat: 0 })), raw: undefined };
+
 const loadCtx = async () => {
-  const [foods, dishes] = await Promise.all([loadFoods(), loadDishes()]);
+  const [foods, dishes] = await Promise.all([loadAllFoods(), loadAllDishes()]);
   return makeCtx(foods, dishes);
 };
 
@@ -57,10 +65,11 @@ router.get(
     const plan = ap?.plan && (await MealPlan.findOne({ _id: ap.plan, $or: [{ owner: null, active: true }, { owner: req.user._id }] }).lean());
     if (!plan) return res.json({ plan: null });
     const index = planDayIndex(ap.startDate, date, plan.days.length);
+    const free = await freeDays(req.user);
     res.json({
       plan: { ...planSummary(plan, req.user._id), startDate: ap.startDate },
       dayIndex: index,
-      day: resolveDay(plan.days[index], await loadCtx()),
+      ...(index >= free ? { locked: true, freeDays: free, day: null } : { day: resolveDay(plan.days[index], await loadCtx()) }),
     });
   }),
 );
@@ -79,7 +88,8 @@ router.get(
   ah(async (req, res) => {
     const [plan, ctx] = await Promise.all([findPlan(req.params.id, req.user), loadCtx()]);
     const active = req.user.activePlan?.plan && String(req.user.activePlan.plan) === String(plan._id);
-    res.json({ plan: { ...planDetail(plan, ctx, req.user._id), active: Boolean(active), startDate: active ? req.user.activePlan.startDate : null } });
+    const detail = lockDays(planDetail(plan, ctx, req.user._id), await freeDays(req.user));
+    res.json({ plan: { ...detail, active: Boolean(active), startDate: active ? req.user.activePlan.startDate : null } });
   }),
 );
 
@@ -89,10 +99,12 @@ router.get(
   ah(async (req, res) => {
     const [plan, ctx] = await Promise.all([findPlan(req.params.id, req.user), loadCtx()]);
     const day = req.query.day;
-    let days = plan.days;
+    const free = await freeDays(req.user);
+    let days = plan.days.slice(0, free);
     if (day !== undefined && day !== '') {
       const i = Number(day);
       if (!Number.isInteger(i) || i < 0 || i >= plan.days.length) throw new HttpError(400, 'Ngày không hợp lệ');
+      if (i >= free) throw new MembershipRequired();
       days = [plan.days[i]];
     }
     res.json({ items: ingredientsFor(days, ctx), dayCount: plan.days.length });
@@ -116,6 +128,7 @@ router.post(
 router.post(
   '/:id/copy',
   ah(async (req, res) => {
+    if (!(await hasAccess(req.user))) throw new MembershipRequired('Tùy chỉnh thực đơn cần kích hoạt gói NUTRIVA');
     const src = await findPlan(req.params.id, req.user);
     if ((await MealPlan.countDocuments({ owner: req.user._id })) >= 30) throw new HttpError(400, 'Bạn đã có tối đa 30 thực đơn tự tạo');
     const base = (src.copiedFrom ?? src.slug).slice(0, 60);
@@ -141,6 +154,7 @@ router.patch(
   '/:id',
   ah(async (req, res) => {
     const plan = await ownPlan(req.params.id, req.user);
+    if (req.body?.days !== undefined && !(await hasAccess(req.user))) throw new MembershipRequired('Chỉnh sửa thực đơn cần kích hoạt gói NUTRIVA');
     const ctx = await loadCtx();
     const { title, days } = req.body ?? {};
     if (title !== undefined) {

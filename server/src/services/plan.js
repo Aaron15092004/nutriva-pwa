@@ -30,10 +30,11 @@ function dishPool(profile, meal, dishes) {
   return pool;
 }
 
+// Sản phẩm NUTRIVA trong kế hoạch: sữa hạt pha sẵn hoặc sản phẩm từ sữa hạt (sữa chua, pudding…)
 const milkItem = (p) => ({
   id: `milk:${p.slug}`,
   kind: 'milk',
-  name: `Sữa hạt NUTRIVA ${p.name}`,
+  name: p.type === 'treat' ? `${p.name} NUTRIVA` : `Sữa hạt NUTRIVA ${p.name}`,
   size: p.size,
   slug: p.slug,
   image: p.image,
@@ -91,7 +92,10 @@ export function defaultItem(profile, meal, date, ctx) {
 
 export function alternatives(profile, meal, ctx, currentId) {
   const options = dishPool(profile, meal, ctx.dishes).map(dishItem);
-  if (meal === 'snack') options.unshift(...rankMilks(ctx.products, profile).map(milkItem));
+  if (meal === 'snack') {
+    const treats = safeProducts(ctx.products, profile).filter((p) => p.type === 'treat' && p.nutrition?.kcal);
+    options.unshift(...rankMilks(ctx.products, profile).slice(0, 2).map(milkItem), ...treats.slice(0, 2).map(milkItem));
+  }
   const health = computeHealth(profile);
   return options
     .filter((o) => o.id !== currentId)

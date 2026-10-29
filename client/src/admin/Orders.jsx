@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Save } from 'lucide-react';
 import { api } from '../lib/api.js';
+import { productTitle } from '@shared/nutrition.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Button, ErrorNote } from '../components/ui.jsx';
 import { useAdminList, useDebounced, Drawer, Pager, Field, vnd, dt } from './kit.jsx';
@@ -60,12 +61,13 @@ function OrderDrawer({ order, onClose, onSaved }) {
           <dt>Thanh toán</dt><dd>{order.payment === 'cod' ? 'Khi nhận hàng (COD)' : 'Chuyển khoản'}</dd>
           <dt>Nguồn</dt><dd>{order.source === 'subscription' ? 'Gói định kỳ' : 'Cửa hàng'}</dd>
           <dt>Đặt lúc</dt><dd>{dt(order.createdAt)}</dd>
+          <dt>Gói thành viên</dt><dd>{order.membershipDays > 0 ? (order.membershipRevoked ? `Đã thu hồi ${order.membershipDays} ngày (đơn hủy / hoàn tiền)` : `Đã cộng ${order.membershipDays} ngày dùng app`) : 'Cộng ngày dùng app khi đơn chuyển sang “Đã thanh toán” hoặc “Hoàn tất”'}</dd>
         </dl>
       </section>
       <section className="a-card stack" style={{ gap: 6 }}>
         {order.items.map((i) => (
           <div key={`${i.slug}${i.sweetness}`} className="row-between small">
-            <span>{i.type === 'diy' ? 'Set ' : 'Sữa '}{i.name}{i.type === 'milk' ? ` (${i.sweetness === 'low' ? 'ít ngọt' : 'không đường'})` : ''} × {i.qty}</span>
+            <span>{productTitle(i)}{i.type === 'milk' ? ` (${i.sweetness === 'low' ? 'ít ngọt' : 'không đường'})` : ''} × {i.qty}</span>
             <b className="tabular">{vnd(i.price * i.qty)}</b>
           </div>
         ))}

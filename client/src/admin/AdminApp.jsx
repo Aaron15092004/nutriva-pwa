@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Receipt, Milk, Apple, Soup, TicketPercent, Users, RefreshCw, Headphones, Settings, ArrowLeft, Menu, Flame, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, Receipt, Milk, Apple, Soup, TicketPercent, Users, RefreshCw, Headphones, Settings, ArrowLeft, Menu, Flame, CalendarRange, Activity, Gauge, ScrollText, Bot, Megaphone, QrCode, Warehouse } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { Logo } from '../components/ui.jsx';
@@ -12,16 +12,30 @@ import UsersPage from './Users.jsx';
 import Subscriptions from './Subscriptions.jsx';
 import Support from './Support.jsx';
 import SettingsPage from './Settings.jsx';
+import Insights from './Insights.jsx';
+import Traffic from './Traffic.jsx';
+import Audit from './Audit.jsx';
+import AssistantQuality from './AssistantQuality.jsx';
+import Activation from './Activation.jsx';
+import Inventory from './Inventory.jsx';
+import PrintCodes from './PrintCodes.jsx';
 import './admin.css';
 
 const NAV = [
   { to: '/admin', label: 'Tổng quan', icon: LayoutDashboard, end: true },
+  { to: '/admin/insights', label: 'Người dùng & hành vi', icon: Activity },
+  { to: '/admin/traffic', label: 'Lưu lượng truy cập', icon: Gauge },
+  { to: '/admin/audit', label: 'Nhật ký thao tác', icon: ScrollText },
+  { to: '/admin/assistant', label: 'Trợ lý Nuti', icon: Bot },
   { to: '/admin/orders', label: 'Đơn hàng', icon: Receipt, badge: 'pending' },
   { to: '/admin/products', label: 'Sản phẩm', icon: Milk },
+  { to: '/admin/inventory', label: 'Kho hàng', icon: Warehouse, badge: 'lowStock' },
+  { to: '/admin/activation', label: 'Mã kích hoạt', icon: QrCode },
   { to: '/admin/foods', label: 'Thực phẩm', icon: Apple },
   { to: '/admin/dishes', label: 'Món ăn', icon: Soup },
   { to: '/admin/meal-plans', label: 'Kế hoạch ăn mẫu', icon: CalendarRange },
   { to: '/admin/activities', label: 'Hoạt động đốt calo', icon: Flame },
+  { to: '/admin/promos', label: 'Quảng cáo & banner', icon: Megaphone },
   { to: '/admin/coupons', label: 'Mã giảm giá', icon: TicketPercent },
   { to: '/admin/users', label: 'Người dùng', icon: Users },
   { to: '/admin/subscriptions', label: 'Gói định kỳ', icon: RefreshCw },
@@ -46,6 +60,14 @@ export default function AdminApp() {
       document.title = 'NUTRIVA';
     };
   }, []);
+
+  // Trang in tem: toàn màn hình, không có menu bên
+  if (/^\/admin\/activation\/[^/]+\/print$/.test(pathname))
+    return (
+      <Routes>
+        <Route path="/admin/activation/:id/print" element={<PrintCodes />} />
+      </Routes>
+    );
 
   return (
     <div className="admin">
@@ -73,12 +95,19 @@ export default function AdminApp() {
         <Routes>
           <Route path="/admin">
           <Route index element={<Dashboard />} />
+          <Route path="insights" element={<Insights />} />
+          <Route path="traffic" element={<Traffic />} />
+          <Route path="audit" element={<Audit />} />
+          <Route path="assistant" element={<AssistantQuality />} />
           <Route path="orders" element={<Orders />} />
           <Route path="products" element={<ResourcePage key="p" config={R.products} />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="activation" element={<Activation />} />
           <Route path="foods" element={<ResourcePage key="f" config={R.foods} />} />
           <Route path="dishes" element={<ResourcePage key="d" config={R.dishes} />} />
           <Route path="meal-plans" element={<ResourcePage key="mp" config={R.mealPlans} />} />
           <Route path="activities" element={<ResourcePage key="a" config={R.activities} />} />
+          <Route path="promos" element={<ResourcePage key="pr" config={R.promos} />} />
           <Route path="coupons" element={<ResourcePage key="c" config={R.coupons} />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="subscriptions" element={<Subscriptions />} />

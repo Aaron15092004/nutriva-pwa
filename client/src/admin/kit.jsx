@@ -34,13 +34,16 @@ export function useDebounced(value, ms = 300) {
 // ---------- Layout ----------
 export function Drawer({ open, title, onClose, children, footer }) {
   const ref = useRef();
+  // onClose giữ trong ref: tránh kéo focus về khung mỗi lần trang cha render lại (đang gõ bị mất con trỏ)
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    if (!open) return undefined;
+    const onKey = (e) => e.key === 'Escape' && closeRef.current();
     document.addEventListener('keydown', onKey);
     ref.current?.focus();
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="a-drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -287,3 +290,18 @@ export function JsonInput({ value, onChange, rows = 14 }) {
 
 export const vnd = (n) => `${Math.round(n ?? 0).toLocaleString('vi-VN')}đ`;
 export const dt = (iso) => (iso ? new Date(iso).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+
+// Tải file CSV từ API cần đăng nhập (không dùng được thẻ <a href> trực tiếp vì cần header Authorization)
+export async function downloadFile(path, filename) {
+  const { tokenStore } = await import('../lib/api.js');
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}${path}`, { headers: { Authorization: `Bearer ${tokenStore.get()}` } });
+  if (!res.ok) throw new Error('Không tải được file');
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+export const ymd = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+export const plusDays = (s, n) => new Date(Date.parse(`${s}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);

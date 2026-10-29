@@ -1,4 +1,4 @@
-import { INGREDIENTS, FLAVORS, MEALS, FOOD_GROUPS, DISH_CATEGORIES, NUTRIENT_GROUPS, PLAN_STYLES, ingredientName } from '@shared/nutrition.js';
+import { INGREDIENTS, FLAVORS, MEALS, FOOD_GROUPS, DISH_CATEGORIES, NUTRIENT_GROUPS, PLAN_STYLES, PRODUCT_TYPES, PROMO_PLACEMENTS, productTypeOf, ingredientName } from '@shared/nutrition.js';
 import { vnd, dt, MicroSummary } from './kit.jsx';
 import { ACTIVITY_CATEGORIES } from '../theme/activities.js';
 import ActivityThumb from '../components/activity/ActivityThumb.jsx';
@@ -16,11 +16,11 @@ export const products = {
   path: '/admin/products',
   title: 'Sản phẩm',
   singular: 'sản phẩm',
-  filters: [{ key: 'type', label: 'Loại', options: [{ id: 'milk', label: 'Sữa hạt' }, { id: 'diy', label: 'Set tự làm' }] }, ACTIVE],
+  filters: [{ key: 'type', label: 'Loại', options: PRODUCT_TYPES.map((t) => ({ id: t.id, label: t.short })) }, ACTIVE],
   columns: [
     { key: 'image', label: '', render: (it) => (it.image ? <img src={it.image} alt="" /> : null) },
     { key: 'name', label: 'Tên', render: (it) => <><b>{it.name}</b><div className="xs muted">{it.slug}</div></> },
-    { key: 'type', label: 'Loại', render: (it) => (it.type === 'diy' ? 'Set tự làm' : 'Sữa hạt') },
+    { key: 'type', label: 'Loại', render: (it) => <>{productTypeOf(it.type).short}{it.badge && <span className="badge warn" style={{ marginLeft: 6 }}>{it.badge}</span>}</> },
     { key: 'price', label: 'Giá', num: true, render: (it) => vnd(it.price) },
     { key: 'stock', label: 'Tồn kho', num: true, render: (it) => (it.stock == null ? '∞' : it.stock) },
     { key: 'active', label: 'Bán', render: activeBadge },
@@ -29,21 +29,25 @@ export const products = {
   fields: [
     { key: 'name', label: 'Tên sản phẩm' },
     { key: 'slug', label: 'Slug (URL)', hint: 'chữ thường, số, gạch ngang — vd: sua-hat-dieu' },
-    { key: 'type', label: 'Loại', type: 'select', options: [{ id: 'milk', label: 'Sữa hạt pha sẵn' }, { id: 'diy', label: 'Set tự làm' }] },
+    { key: 'type', label: 'Loại', type: 'select', options: PRODUCT_TYPES.map((t) => ({ id: t.id, label: t.label })) },
+    { key: 'badge', label: 'Nhãn nổi bật', hint: 'vd: Mới, Bán chạy, -20% — để trống nếu không cần' },
     { key: 'flavor', label: 'Hương vị', type: 'select', options: FLAVORS },
     { key: 'price', label: 'Giá (đ)', type: 'number', min: 0, step: 1000 },
-    { key: 'stock', label: 'Tồn kho', type: 'number', min: 0, step: 1, hint: 'Để trống = không giới hạn' },
+    { key: 'stock', label: 'Tồn kho', type: 'number', min: 0, step: 1, hint: 'Nên nhập kho theo lô ở trang Kho hàng (có hạn dùng). Trống = không giới hạn' },
+    { key: 'lowStock', label: 'Cảnh báo sắp hết khi còn', type: 'number', min: 0, step: 1 },
+    { key: 'membershipDays', label: 'Ngày dùng app mỗi đơn vị', type: 'number', min: 0, step: 1, hint: 'Trống = theo loại trong Cài đặt (chai 2 ngày, gói hạt 4 ngày)' },
     { key: 'size', label: 'Quy cách', hint: 'vd: 330ml, 1 set' },
     { key: 'subtitle', label: 'Phụ đề' },
     { key: 'line', label: 'Dòng sản phẩm', hint: 'Sữa & set cùng dòng sẽ liên kết với nhau' },
     { key: 'sort', label: 'Thứ tự hiển thị', type: 'number', step: 1 },
     { key: 'image', label: 'Ảnh', type: 'image' },
+    { key: 'imageCredit', label: 'Ghi nguồn ảnh', hint: 'Ảnh tạm có giấy phép mở thì ghi tác giả / giấy phép; ảnh của NUTRIVA để trống' },
     { key: 'ingredients', label: 'Thành phần hạt (dùng để lọc dị ứng)', type: 'chips', options: ALLERGEN_OPTIONS },
     { key: 'extraIngredients', label: 'Thành phần khác', type: 'list', full: true, hint: 'Cách nhau bởi dấu phẩy — vd: Cacao nguyên chất' },
-    { key: 'nutrition', label: 'Dinh dưỡng mỗi chai / 330 ml', type: 'nutrition' },
+    { key: 'nutrition', label: 'Dinh dưỡng mỗi chai (sữa) / mỗi phần ăn (sản phẩm từ sữa hạt)', type: 'nutrition' },
     { key: 'description', label: 'Mô tả', type: 'textarea' },
     { key: 'storage', label: 'Bảo quản & hạn dùng', type: 'textarea' },
-    { key: 'steps', label: 'Các bước tự làm (set DIY)', type: 'steps', hint: 'Để trống: dùng hướng dẫn mặc định trong Cài đặt' },
+    { key: 'steps', label: 'Các bước tự nấu (gói hạt)', type: 'steps', hint: 'Để trống: dùng hướng dẫn mặc định trong Cài đặt' },
     { key: 'active', label: 'Đang bán', type: 'checkbox', checkLabel: 'Hiển thị trong cửa hàng' },
   ],
 };
@@ -170,6 +174,41 @@ export const mealPlans = {
     },
     { key: 'sort', label: 'Thứ tự', type: 'number', step: 1 },
     { key: 'active', label: 'Hiển thị', type: 'checkbox', checkLabel: 'Hiện trong Khám phá thực đơn' },
+  ],
+};
+
+// Banner quảng cáo (trang chủ, cửa hàng, kế hoạch, theo dõi)
+const PLACEMENT_LABEL = Object.fromEntries(PROMO_PLACEMENTS.map((p) => [p.id, p.label]));
+const ctr = (it) => (it.views ? `${((it.clicks / it.views) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%` : '—');
+export const promos = {
+  path: '/admin/promos',
+  title: 'Quảng cáo & banner',
+  singular: 'banner',
+  filters: [{ key: 'placements', label: 'Vị trí', options: PROMO_PLACEMENTS }, ACTIVE],
+  columns: [
+    { key: 'image', label: '', render: (it) => (it.image ? <img src={it.image} alt="" /> : null) },
+    { key: 'title', label: 'Banner', render: (it) => <><b>{it.title}</b><div className="xs muted">{it.link || '—'}</div></> },
+    { key: 'placements', label: 'Vị trí', render: (it) => (it.placements ?? []).map((p) => PLACEMENT_LABEL[p] ?? p).join(', ') },
+    { key: 'views', label: 'Lượt xem', num: true, render: (it) => (it.views ?? 0).toLocaleString('vi-VN') },
+    { key: 'clicks', label: 'Lượt bấm', num: true, render: (it) => (it.clicks ?? 0).toLocaleString('vi-VN') },
+    { key: 'ctr', label: 'Tỉ lệ bấm', num: true, render: ctr },
+    { key: 'endAt', label: 'Hết hạn', render: (it) => (it.endAt ? dt(it.endAt) : 'Không') },
+    { key: 'active', label: '', render: activeBadge },
+  ],
+  defaults: { title: '', subtitle: '', ctaLabel: 'Xem ngay', link: '/shop', placements: ['home'], theme: 'brand', startAt: null, endAt: null, sort: 0, active: true },
+  fields: [
+    { key: 'title', label: 'Tiêu đề', hint: 'Ngắn gọn, tối đa 80 ký tự — vd: Ưu đãi 10% sữa hạt' },
+    { key: 'subtitle', label: 'Mô tả ngắn', hint: 'Tối đa 160 ký tự' },
+    { key: 'ctaLabel', label: 'Chữ trên nút', hint: 'vd: Mua ngay, Xem trên Shopee' },
+    { key: 'link', label: 'Link khi bấm', hint: 'Trang trong app: /shop, /shop/p/<slug>, /shop/subscribe — hoặc link ngoài https://shopee.vn/…' },
+    { key: 'placements', label: 'Hiện ở', type: 'chips', options: PROMO_PLACEMENTS },
+    { key: 'theme', label: 'Kiểu hiển thị', type: 'select', options: [{ id: 'image', label: 'Ảnh thiết kế sẵn (không phủ chữ)' }, { id: 'brand', label: 'Ảnh + chữ trên nền xanh' }, { id: 'warm', label: 'Ảnh + chữ trên nền cam' }, { id: 'cream', label: 'Ảnh + chữ trên nền nâu kem' }, { id: 'dark', label: 'Ảnh + chữ trên nền tối' }] },
+    { key: 'startAt', label: 'Bắt đầu hiện lúc', type: 'datetime', hint: 'Trống = hiện ngay' },
+    { key: 'endAt', label: 'Ngừng hiện lúc', type: 'datetime', hint: 'Trống = không hết hạn' },
+    { key: 'sort', label: 'Thứ tự', type: 'number', step: 1 },
+    { key: 'image', label: 'Ảnh (ngang 16:9, ≥ 1200px)', type: 'image', hint: 'Banner thiết kế trên Canva: xuất PNG/JPG 1600×900 rồi chọn kiểu "Ảnh thiết kế sẵn"' },
+    { key: 'imageCredit', label: 'Ghi nguồn ảnh', hint: 'Ảnh tạm có giấy phép mở thì ghi tác giả / giấy phép' },
+    { key: 'active', label: 'Trạng thái', type: 'checkbox', checkLabel: 'Đang hiện' },
   ],
 };
 

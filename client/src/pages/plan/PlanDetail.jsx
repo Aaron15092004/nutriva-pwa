@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ShoppingBasket, MoreVertical, Trash2, Plus, Minus, Check } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ShoppingBasket, MoreVertical, Trash2, Plus, Minus, Check, Milk, Lock } from 'lucide-react';
+import { LockedCard } from '../../components/membership/Paywall.jsx';
+import { openPaywall } from '../../lib/membership.js';
 import { MEALS } from '@shared/nutrition.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -10,7 +12,7 @@ import { today, parseDate } from '../../lib/format.js';
 import { Sheet, Skeleton, ErrorNote, Button } from '../../components/ui.jsx';
 import { CircleButton, fmt, cx } from '../../components/ds/index.jsx';
 import FoodSearchList, { useFoods } from '../../components/FoodSearchList.jsx';
-import { DaySummary, MealBlock, PlanItemRow, PlanPills, kcalRange } from '../../components/plan/PlanParts.jsx';
+import { DaySummary, MealBlock, PlanItemRow, PlanPills, kcalRange, isMilkItem } from '../../components/plan/PlanParts.jsx';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const shortDate = (s) => parseDate(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -103,9 +105,11 @@ export default function PlanDetail() {
     for (const d of plan?.days ?? []) for (const meal of d.meals) for (const it of meal.items) if (it.kind === 'dish') m.set(it.dish, { name: it.name, image: it.image, grams: it.grams / it.portion, kcal: it.kcal / it.portion, protein: it.protein / it.portion, carb: it.carb / it.portion, fat: it.fat / it.portion });
     return m;
   }, [plan]);
+  // Số lần sữa hạt NUTRIVA xuất hiện trong cả kế hoạch (gợi ý đặt gói định kỳ)
+  const milkCount = useMemo(() => (plan?.days ?? []).reduce((n, d) => n + d.meals.reduce((k, m) => k + m.items.filter(isMilkItem).length, 0), 0), [plan]);
 
   // Mở chế độ chỉnh sửa ngay sau khi sao chép
-  if (plan?.mine && params.get('edit') === '1' && !draft) {
+  if (plan?.mine && plan.raw && params.get('edit') === '1' && !draft) {
     setDraft(plan.raw.map((items) => items.map((x) => ({ ...x }))));
     setParams({}, { replace: true });
   }
@@ -150,6 +154,7 @@ export default function PlanDetail() {
   };
   // Kế hoạch mẫu → sao chép thành thực đơn tự tạo rồi mở chỉnh sửa; thực đơn của tôi → chỉnh sửa trực tiếp
   const customize = async () => {
+    if (plan.mine && !plan.raw) return openPaywall('Chỉnh sửa thực đơn cần kích hoạt gói NUTRIVA');
     if (plan.mine) return setDraft(plan.raw.map((items) => items.map((x) => ({ ...x }))));
     setBusy('copy');
     try {
@@ -274,19 +279,38 @@ export default function PlanDetail() {
                   type="button"
                   role="tab"
                   aria-selected={i === dayIdx}
-                  aria-label={`Ngày ${i + 1}`}
+                  aria-label={`Ngày ${i + 1}${d.locked ? ' (cần kích hoạt gói)' : ''}`}
                   onClick={() => setDayIdx(i)}
                   className={cx(
                     'mx-auto grid aspect-square w-full max-w-12 place-items-center rounded-full font-secondary text-base font-bold transition',
                     i === dayIdx ? 'bg-brand-main text-white ring-2 ring-brand-soft ring-offset-2 ring-offset-background' : 'bg-white text-primary shadow-pill hover:bg-brand-light',
                   )}
                 >
-                  {i + 1}
+                  {d.locked ? <Lock size={14} aria-hidden="true" /> : i + 1}
                 </button>
               ))}
             </div>
-            <DaySummary kcal={day.kcal} protein={day.protein} carb={day.carb} fat={day.fat} />
+            {day.locked ? (
+              <LockedCard title={`Ngày ${dayIdx + 1} dành cho thành viên`} text={`Bạn đang xem thử ${plan.lockedFrom}/${plan.days.length} ngày đầu. Quét mã trên chai sữa hạt để mở trọn kế hoạch.`} />
+            ) : (
+              <DaySummary kcal={day.kcal} protein={day.protein} carb={day.carb} fat={day.fat} />
+            )}
           </section>
+
+          {milkCount > 0 && !editing && (
+            <section aria-labelledby="plan-milk" className="flex flex-col gap-2 rounded-xl bg-breakfast-card p-4">
+              <h2 id="plan-milk" className="flex items-center gap-2 text-base font-bold text-primary">
+                <Milk size={20} className="text-brand-dark" aria-hidden="true" /> Sữa hạt trong kế hoạch này
+              </h2>
+              <p className="text-sm text-secondary">
+                Có <b>{milkCount}</b> lần dùng sữa hạt NUTRIVA trong {plan.days.length} ngày. Đặt gói định kỳ để luôn có sẵn sữa tươi mỗi sáng — tạm dừng bất cứ lúc nào.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link to="/shop/subscribe" className="inline-flex h-10 items-center rounded-full bg-brand-dark px-4 text-sm font-bold text-white">Đặt gói định kỳ</Link>
+                <Link to="/shop?tab=milk" className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-bold text-brand-deep">Mua lẻ</Link>
+              </div>
+            </section>
+          )}
 
           {editing && (
             <p className="rounded-lg bg-warning p-4 text-sm text-secondary">
@@ -311,7 +335,7 @@ export default function PlanDetail() {
                 }
               >
                 {m.items.map((it, i) => (
-                  <PlanItemRow key={editing ? `e-${it.idx}` : i} item={it}>
+                  <PlanItemRow key={editing ? `e-${it.idx}` : i} item={it} buy={!editing}>
                     {editing && <AmountEditor it={draft[dayIdx][it.idx]} onChange={(p) => editItem(it.idx, p)} onRemove={() => removeItem(it.idx)} />}
                   </PlanItemRow>
                 ))}

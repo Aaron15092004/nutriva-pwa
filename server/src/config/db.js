@@ -7,9 +7,10 @@ export async function connectDB() {
 
   if (!uri) {
     if (process.env.NODE_ENV === 'production') throw new Error('Thiếu MONGODB_URI — cấu hình chuỗi kết nối MongoDB Atlas trong .env');
-    // Chỉ dùng khi phát triển: MongoDB trong bộ nhớ (dữ liệu mất khi tắt server)
-    const { MongoMemoryServer } = await import('mongodb-memory-server');
-    memoryServer = await MongoMemoryServer.create();
+    // Chỉ dùng khi phát triển: MongoDB trong bộ nhớ (dữ liệu mất khi tắt server).
+    // Chạy dạng replica set 1 node để có transaction giống Atlas (đặt đơn hàng dùng transaction).
+    const { MongoMemoryReplSet } = await import('mongodb-memory-server');
+    memoryServer = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: 'wiredTiger' } });
     uri = memoryServer.getUri('nutriva');
     console.warn('[db] MONGODB_URI chưa được đặt — đang dùng MongoDB TẠM trong bộ nhớ. Xem docs/MONGODB_ATLAS.md để kết nối Atlas.');
   }

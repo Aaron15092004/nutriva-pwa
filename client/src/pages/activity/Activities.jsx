@@ -7,7 +7,8 @@ import { useApi } from '../../lib/useApi.js';
 import { api } from '../../lib/api.js';
 import { today, longDate } from '../../lib/format.js';
 import { exerciseKcal } from '@shared/nutrition.js';
-import { TopBar, Sheet, Button, ErrorNote, Skeleton } from '../../components/ui.jsx';
+import { TopBar, Sheet, ErrorNote, Skeleton } from '../../components/ui.jsx';
+import { TextField, PrimaryButton } from '../../components/ds/form.jsx';
 import { IconCircle, ProgressBar, fmt, cx } from '../../components/ds/index.jsx';
 import { groupLetter } from '../../theme/activities.js';
 
@@ -87,22 +88,15 @@ function CustomActivitySheet({ open, onClose, date, onLog }) {
     <Sheet open={open} onClose={onClose} title="Hoạt động khác">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted">Không tìm thấy hoạt động? Nhập thủ công thời gian và calo tiêu thụ (ví dụ từ đồng hồ thông minh).</p>
-        <div className="field">
-          <label htmlFor="ca-name">Tên hoạt động</label>
-          <div className="input-wrap"><input id="ca-name" maxLength={60} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-        </div>
+        <TextField id="ca-name" label="Tên hoạt động" maxLength={60} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <div className="grid grid-cols-2 gap-4">
-          <div className="field">
-            <label htmlFor="ca-min">Thời gian</label>
-            <div className="input-wrap"><input id="ca-min" type="number" inputMode="numeric" min="1" max="600" value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /><span className="unit">phút</span></div>
-          </div>
-          <div className="field">
-            <label htmlFor="ca-kcal">Calo tiêu thụ</label>
-            <div className="input-wrap"><input id="ca-kcal" type="number" inputMode="numeric" min="0" value={form.kcal} onChange={(e) => setForm({ ...form, kcal: e.target.value })} /><span className="unit">kcal</span></div>
-          </div>
+          <TextField id="ca-min" label="Thời gian" unit="phút" type="number" inputMode="numeric" min="1" max="600" value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} />
+          <TextField id="ca-kcal" label="Calo tiêu thụ" unit="kcal" type="number" inputMode="numeric" min="0" value={form.kcal} onChange={(e) => setForm({ ...form, kcal: e.target.value })} />
         </div>
         <ErrorNote error={error} />
-        <Button className="btn-primary btn-block" loading={busy} disabled={!form.name.trim() || !form.minutes || form.kcal === ''} onClick={save}>Lưu hoạt động</Button>
+        <PrimaryButton loading={busy} disabled={!form.name.trim() || !form.minutes || form.kcal === ''} onClick={save} className="w-full">
+          Lưu hoạt động
+        </PrimaryButton>
       </div>
     </Sheet>
   );
@@ -168,6 +162,7 @@ export default function Activities() {
   return (
     <>
       <TopBar
+        fallback="/"
         title="Thêm hoạt động"
         actions={
           <button className="icon-btn" aria-label="Thêm hoạt động khác" onClick={() => setCustomOpen(true)}>
@@ -218,7 +213,7 @@ export default function Activities() {
         {!list.loading && !groups.length && (
           <div className="flex flex-col items-center gap-2 py-8 text-center text-muted">
             <p>Không tìm thấy “{q}”.</p>
-            <button type="button" className="link" onClick={() => setCustomOpen(true)}>Nhập hoạt động khác</button>
+            <button type="button" className="min-h-11 font-bold text-brand-dark" onClick={() => setCustomOpen(true)}>Nhập hoạt động khác</button>
           </div>
         )}
       </main>

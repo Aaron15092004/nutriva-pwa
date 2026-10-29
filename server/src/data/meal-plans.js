@@ -149,8 +149,56 @@ export const PATTERNS = {
   },
 };
 
+// Sữa hạt mỗi ngày: bữa sáng và bữa phụ luôn có sữa hạt NUTRIVA (uống trực tiếp hoặc trong món: yến mạch ngâm, sinh tố, pudding…).
+// Ô "base" và "main" của bữa sáng xoay vòng cùng nhịp: ngày ăn món đã có sữa hạt thì đi kèm trứng/hạt, ngày ăn bánh mì/khoai thì uống 1 chai.
+PATTERNS['nut-milk'] = {
+  breakfast: [
+    slot('base', D('yen-mach-ngam-sua-hat-qua-dem'), F('banh-mi-nguyen-cam', 60, 'Bánh mì nguyên cám'), D('chao-yen-mach-sua-hat-viet-quat'), F('khoai-lang', 150, 'Khoai lang hấp'), D('yen-mach-ngam-sua-hat-qua-dem'), F('banh-mi-nguyen-cam', 60, 'Bánh mì nguyên cám nướng'), D('banh-mi-nguyen-cam-trung-va-sua-hat')),
+    slot('main', F('trung-ga', 50, 'Trứng gà luộc', '1 quả', 50), F('sua-hat-nutriva', 300, 'Sữa hạt NUTRIVA', null, 10), F('trung-ga', 50, 'Trứng gà ốp la', '1 quả', 50), F('sua-hat-nutriva', 300, 'Sữa hạt NUTRIVA', null, 10), F('sua-chua-it-duong', 100, 'Sữa chua ít đường'), F('sua-hat-nutriva', 300, 'Sữa hạt NUTRIVA', null, 10), F('hanh-nhan', 10, 'Hạnh nhân')),
+    slot('side', ...BERRY),
+  ],
+  lunch: PATTERNS['eat-clean'].lunch,
+  dinner: PATTERNS['eat-clean'].dinner,
+  snack: [
+    slot('main', D('sinh-to-chuoi-sua-hat'), D('pudding-hat-chia-sua-hat'), F('sua-hat-nutriva', 250, 'Sữa hạt NUTRIVA', null, 10), D('ca-cao-sua-hat-am'), D('sinh-to-bo-sua-hat'), F('sua-hat-nutriva', 250, 'Sữa hạt NUTRIVA', null, 10), D('pudding-hat-chia-sua-hat')),
+    slot('side', F('hanh-nhan', 15, 'Hạnh nhân'), F('oc-cho', 15, 'Óc chó'), F('tao-tay', 150, 'Táo tây'), F('hat-dieu', 15, 'Hạt điều'), F('dau-tay', 100, 'Dâu tây'), F('hat-bi', 15, 'Hạt bí'), F('chuoi-tieu', 100, 'Chuối tiêu')),
+  ],
+};
+
+// Ảnh bìa nhóm kế hoạch sữa hạt: dựng từ chai NUTRIVA thật (cùng bộ đồ họa với banner trong app)
+const BRAND = (name) => ({ imagePath: `/img/plans/${name}.webp`, imageCredit: null });
+
 // Danh mục kế hoạch mẫu (ảnh bìa: /img/plans/<image>.webp)
 export const PLAN_CATALOG = [
+  // ---- Sữa hạt mỗi ngày ----
+  {
+    slug: 'sua-hat-thanh-nhe-1200',
+    title: 'Thanh nhẹ 7 ngày cùng sữa hạt',
+    summary: 'Giảm cân nhẹ nhàng: mỗi ngày 1–2 ly sữa hạt thay cho đồ uống nhiều đường, vẫn đủ no và đủ đạm.',
+    description: 'Kế hoạch dành cho người muốn giảm cân mà không phải nhịn ăn. Bữa sáng là yến mạch ngâm sữa hạt hoặc bánh mì nguyên cám kèm 1 chai sữa hạt NUTRIVA; bữa phụ chiều là sinh tố, pudding hạt chia hoặc 1 ly sữa hạt — thay cho trà sữa, nước ngọt. Trưa và tối theo kiểu eat clean: tinh bột nguyên hạt, đạm nạc và nhiều rau. Mức 1.200–1.400 kcal phù hợp với phụ nữ ít vận động; người tập luyện nhiều nên chọn mức calo cao hơn.',
+    style: 'nut-milk', pattern: 'nut-milk', kcalMin: 1200, kcalMax: 1400, offset: 0, ...BRAND('milk-thanh-nhe'),
+  },
+  {
+    slug: 'sua-hat-sang-khoe-1600',
+    title: 'Sáng khỏe với sữa hạt cho dân văn phòng',
+    summary: 'Bữa sáng 5 phút với sữa hạt & yến mạch — no lâu đến trưa, không còn bỏ bữa sáng.',
+    description: 'Thực đơn cho người bận rộn hay bỏ bữa sáng. Tối hôm trước chỉ cần ngâm yến mạch với sữa hạt, sáng ra là có bữa ăn đủ chất xơ, đạm thực vật và chất béo tốt. Bữa phụ 15h là ly sữa hạt hoặc sinh tố giúp tránh cơn đói gây ăn vặt. Trưa, tối là các món eat clean dễ chuẩn bị trong 15 phút. Mức 1.600–1.800 kcal phù hợp với người vận động nhẹ.',
+    style: 'nut-milk', pattern: 'nut-milk', kcalMin: 1600, kcalMax: 1800, offset: 2, ...BRAND('milk-sang-khoe'),
+  },
+  {
+    slug: 'sua-hat-nang-dong-2000',
+    title: 'Sữa hạt mỗi ngày: năng lượng bền cho người năng động',
+    summary: 'Sinh tố & sữa hạt trước và sau vận động — bổ sung năng lượng, đạm thực vật và khoáng chất.',
+    description: 'Dành cho người đi bộ, chạy, đạp xe hoặc tập gym 3–5 buổi/tuần. Sữa hạt NUTRIVA xuất hiện ở bữa sáng và bữa phụ, kết hợp chuối, bơ, hạt chia để bổ sung năng lượng trước buổi tập và phục hồi sau tập. Bữa chính giàu đạm nạc và rau xanh. Mức 2.000–2.200 kcal phù hợp với nam vận động vừa hoặc nữ vận động nhiều.',
+    style: 'nut-milk', pattern: 'nut-milk', kcalMin: 2000, kcalMax: 2200, offset: 4, ...BRAND('milk-nang-dong'),
+  },
+  {
+    slug: 'sua-hat-tang-can-2400',
+    title: 'Tăng cân lành mạnh với sữa hạt & ngũ cốc',
+    summary: 'Thêm năng lượng từ sữa hạt, yến mạch và các loại hạt — tăng cân từ từ, không dầu mỡ.',
+    description: 'Kế hoạch cho người gầy, khó tăng cân. Thay vì ăn nhiều đồ chiên rán, năng lượng được bổ sung bằng sữa hạt, yến mạch, hạt điều, hạnh nhân và chuối — dễ ăn, không gây đầy bụng. Mỗi ngày có 2 lần sữa hạt NUTRIVA (sáng và chiều). Kết hợp tập sức mạnh 2–3 buổi/tuần để tăng cơ thay vì tăng mỡ. Mức 2.400–2.600 kcal.',
+    style: 'nut-milk', pattern: 'nut-milk', kcalMin: 2400, kcalMax: 2600, offset: 1, ...BRAND('milk-tang-can'),
+  },
   {
     slug: 'eat-clean-van-phong-1200',
     title: 'Eat clean cho dân văn phòng bận rộn',
@@ -309,8 +357,8 @@ export function buildMealPlans(foods, dishes) {
     style: def.style,
     kcalMin: def.kcalMin,
     kcalMax: def.kcalMax,
-    image: `/img/plans/${def.image}.webp`,
-    imageCredit: IMAGE_CREDITS[def.image],
+    image: def.imagePath ?? `/img/plans/${def.image}.webp`,
+    imageCredit: def.imageCredit ?? IMAGE_CREDITS[def.image],
     sort: i,
     days: buildPlanDays(def, foods, dishes),
     active: true,

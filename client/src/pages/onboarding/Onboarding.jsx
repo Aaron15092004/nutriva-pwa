@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { ACTIVITY_LEVELS, DIETS, INGREDIENTS, FLAVORS, calcBMI, bmiCategory, calcWHtR, whtrCategory, computeHealth } from '@shared/nutrition.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { track } from '../../lib/track.js';
 import { ErrorNote } from '../../components/ui.jsx';
 import { CircleButton, cx, fmt } from '../../components/ds/index.jsx';
 import { TextField, PrimaryButton, BottomBar } from '../../components/ds/form.jsx';
@@ -65,9 +66,11 @@ const targetRange = (v) => {
   return { min: r1(v.weightKg + 0.5), max: Math.max(hi, r1(v.weightKg + 1)) };
 };
 
-const toProfile = (v) => ({
+const toProfile = (v, touched = {}) => ({
   gender: v.gender,
+  birthYear: v.birthYear,
   age: THIS_YEAR - v.birthYear,
+  waistEstimated: !touched.waist, // người dùng chưa chỉnh vòng eo → số ước tính
   heightCm: v.heightCm,
   weightKg: v.weightKg,
   waistCm: v.waistCm,
@@ -140,7 +143,7 @@ const OPT = {
   ],
   preference: [
     { id: 'ready', label: 'Sữa pha sẵn', desc: 'Giao tận nơi, mở nắp là uống', icon: Milk, color: C.blue },
-    { id: 'diy', label: 'Tự làm tại nhà', desc: 'Set hạt chia sẵn + hướng dẫn từng bước', icon: ChefHat, color: C.warm },
+    { id: 'diy', label: 'Tự làm tại nhà', desc: 'Gói hạt định lượng sẵn + hướng dẫn từng bước', icon: ChefHat, color: C.warm },
   ],
   milkTimes: [
     { id: 'breakfast', label: 'Bữa sáng', desc: 'Nhanh gọn, no lâu', icon: Sunrise, color: C.warm },
@@ -242,9 +245,14 @@ export default function Onboarding() {
     if (stepName === 'waist' && !touched.waist) set({ waistCm: Math.min(150, Math.max(50, estimateWaist(v))) });
   };
   useEffect(() => enter(id), [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phễu onboarding (admin xem bước nào người dùng hay bỏ dở)
+  useEffect(() => {
+    if (idx === 0) track('onboarding.start');
+    track('onboarding.step', { step: id, index: idx });
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const finish = () => sessionStorage.removeItem(DRAFT_KEY);
-  const profile = () => toProfile(v);
+  const profile = () => toProfile(v, touched);
   const cleanSurvey = () => ({ ...survey, milkTimes: survey.milkTimes?.length ? survey.milkTimes : ['afternoon'] });
 
   const submitGoogle = async (credential) => {

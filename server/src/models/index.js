@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { MICRO_IDS } from '../../../shared/nutrition.js';
+import { MICRO_IDS, PLAN_STYLES, profileAge } from '../../../shared/nutrition.js';
 
 const { Schema, model } = mongoose;
 const ref = (name) => ({ type: Schema.Types.ObjectId, ref: name, required: true, index: true });
@@ -8,10 +8,13 @@ const MEAL_IDS = ['breakfast', 'lunch', 'dinner', 'snack'];
 const ProfileSchema = new Schema(
   {
     gender: { type: String, enum: ['male', 'female'], required: true },
-    age: { type: Number, min: 10, max: 100, required: true },
+    // Năm sinh là nguồn chính (tuổi tự tăng theo năm). `age` giữ lại cho dữ liệu cũ — xem shared/nutrition.js profileAge()
+    birthYear: { type: Number, min: 1900, max: 2100 },
+    age: { type: Number, min: 10, max: 100 },
     heightCm: { type: Number, min: 100, max: 230, required: true },
     weightKg: { type: Number, min: 25, max: 250, required: true },
     waistCm: { type: Number, min: 40, max: 200, required: true },
+    waistEstimated: { type: Boolean, default: false }, // vòng eo do app ước tính (người dùng chưa đo)
     targetWeightKg: { type: Number, min: 25, max: 250, default: null }, // cân nặng mục tiêu (onboarding)
     goal: { type: String, enum: ['maintain', 'gain', 'lose'], default: 'maintain' },
     activity: { type: String, enum: ['sedentary', 'light', 'moderate', 'active'], default: 'light' },
@@ -33,6 +36,14 @@ const UserSchema = new Schema(
     // Tài khoản Google có thể không có mật khẩu
     passwordHash: { type: String, required: function needsPassword() { return !this.googleId; } },
     googleId: { type: String, unique: true, sparse: true },
+    tokenVersion: { type: Number, default: 0 }, // tăng khi đổi/đặt lại mật khẩu → mọi phiên cũ hết hiệu lực
+    lastActiveAt: { type: Date, index: true }, // cập nhật tối đa 1 lần/giờ (middleware auth)
+    favoriteFoods: { type: [String], default: [] }, // key thực phẩm hay dùng (ghi nhanh)
+    // Gói sử dụng app: mở khóa kế hoạch đầy đủ & nhắc nhở. Cộng ngày khi nhập mã trên chai / mua hàng đã thanh toán.
+    membership: {
+      until: { type: Date, default: null, index: true },
+      noticeDate: String, // ngày (YYYY-MM-DD) đã gửi nhắc sắp hết hạn — mỗi ngày tối đa 1 lần
+    },
     name: { type: String, required: true, trim: true, maxlength: 60 },
     role: { type: String, enum: ['user', 'admin'], default: 'user', index: true },
     avatar: { type: String, default: '' },
@@ -49,9 +60,17 @@ const UserSchema = new Schema(
   },
   { timestamps: true },
 );
+// Tuổi ↔ năm sinh: người dùng nhập/sửa tuổi → suy ra năm sinh; `age` lưu kèm luôn được làm mới theo năm sinh.
+UserSchema.pre('validate', function syncAge() {
+  const p = this.profile;
+  if (!p) return;
+  if (p.age && (!p.birthYear || (this.isModified('profile.age') && profileAge(p) !== p.age))) p.birthYear = new Date().getFullYear() - p.age;
+  if (p.birthYear) p.age = profileAge(p);
+});
 
 const LoggedFoodSchema = new Schema({
   foodId: String,
+  cid: String, // mã do client sinh: gửi lại (mất mạng, bấm 2 lần) không bị ghi trùng
   name: { type: String, required: true },
   grams: { type: Number, required: true, min: 1 },
   kcal: Number,
@@ -71,7 +90,8 @@ const DailyLogSchema = new Schema(
       snack: { type: [LoggedFoodSchema], default: [] },
     },
     waterMl: { type: Number, default: 0, min: 0 },
-    exercises: [{ type: { type: String }, label: String, variant: String, met: Number, minutes: Number, kcal: Number, custom: Boolean }],
+    exercises: [{ type: { type: String }, label: String, variant: String, met: Number, minutes: Number, kcal: Number, custom: Boolean, cid: String }],
+    ops: { type: [String], default: undefined, select: false }, // mã thao tác nước gần đây (chống cộng trùng khi gửi lại)
     mood: { type: String, enum: ['great', 'good', 'normal', 'tired', 'bad', null], default: null },
   },
   { timestamps: true },
@@ -102,7 +122,7 @@ PlanChoiceSchema.index({ user: 1, date: 1, meal: 1 }, { unique: true });
 const ProductSchema = new Schema(
   {
     slug: { type: String, required: true, unique: true, trim: true, lowercase: true, match: /^[a-z0-9-]+$/ },
-    type: { type: String, enum: ['milk', 'diy'], required: true },
+    type: { type: String, enum: ['milk', 'diy', 'treat'], required: true }, // treat: sản phẩm chế biến từ sữa hạt
     name: { type: String, required: true, trim: true },
     subtitle: String,
     size: String,
@@ -112,11 +132,15 @@ const ProductSchema = new Schema(
     extraIngredients: { type: [String], default: [] },
     flavor: { type: String, enum: ['beo-nhe', 'thanh-nhe', 'dam-vi'], default: 'beo-nhe' },
     image: String,
+    imageCredit: String, // ghi nguồn ảnh (ảnh tạm có giấy phép mở)
+    badge: { type: String, maxlength: 24 }, // nhãn nổi bật: "Mới", "Bán chạy"…
     description: String,
     nutrition: { kcal: { type: Number, default: 0 }, protein: { type: Number, default: 0 }, carb: { type: Number, default: 0 }, fat: { type: Number, default: 0 } },
     storage: String,
     steps: [{ _id: false, title: String, text: String }],
     stock: { type: Number, default: null, min: 0 }, // null = không giới hạn
+    lowStock: { type: Number, default: 10, min: 0 }, // dưới mức này → cảnh báo "sắp hết" trong Kho hàng
+    membershipDays: { type: Number, default: null, min: 0 }, // ngày sử dụng app cộng cho mỗi đơn vị (trống = theo loại trong Cài đặt)
     sort: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
   },
@@ -200,7 +224,7 @@ const MealPlanSchema = new Schema(
     title: { type: String, required: true, trim: true, maxlength: 120 },
     summary: { type: String, trim: true, maxlength: 300 },
     description: { type: String, trim: true, maxlength: 3000 },
-    style: { type: String, enum: ['eat-clean', 'balanced', 'high-protein', 'plant', 'vietnamese'], default: 'balanced', index: true },
+    style: { type: String, enum: PLAN_STYLES.map((x) => x.id), default: 'balanced', index: true },
     kcalMin: { type: Number, required: true, min: 800, max: 5000 },
     kcalMax: { type: Number, required: true, min: 800, max: 5000 },
     image: String,
@@ -261,9 +285,64 @@ const SettingSchema = new Schema(
     subscriptionPlans: [{ _id: false, id: String, bottles: Number, price: Number, label: String }],
     diySteps: [{ _id: false, title: String, text: String }],
     vapid: { publicKey: String, privateKey: String },
+    catalogVersion: { type: Number, default: 0 }, // tăng khi admin sửa sản phẩm/thực phẩm/món → các server làm mới cache
+    // Kênh bán hàng chính thức (Shopee, TikTok Shop, Facebook…) — hiện trong popup, cửa hàng, trang sản phẩm
+    channels: [{ _id: false, id: String, label: String, url: String, note: String }],
+    // Gói sử dụng & mã kích hoạt
+    membership: {
+      enabled: { type: Boolean, default: true },
+      freePlanDays: { type: Number, default: 3, min: 0, max: 7 }, // tài khoản chưa kích hoạt xem được N/7 ngày kế hoạch
+      daysPerBottle: { type: Number, default: 2, min: 0 },
+      daysPerSet: { type: Number, default: 4, min: 0 }, // gói hạt tự nấu ≈ 1 lít ≈ 3 chai
+      daysPerTreat: { type: Number, default: 0, min: 0 },
+      expiryNoticeDays: { type: Number, default: 2, min: 0, max: 14 },
+    },
+    // Quảng cáo toàn màn hình khi chuyển trang (dùng banner có vị trí "interstitial")
+    interstitial: {
+      enabled: { type: Boolean, default: true },
+      everyNav: { type: Number, default: 6, min: 2, max: 50 }, // sau mỗi N lần chuyển trang
+      minMinutes: { type: Number, default: 5, min: 1, max: 1440 }, // cách quảng cáo trước ít nhất M phút
+      skipSeconds: { type: Number, default: 3, min: 0, max: 10 },
+      maxPerDay: { type: Number, default: 4, min: 1, max: 50 },
+      skipMembers: { type: Boolean, default: false }, // không hiện cho người đang có gói
+    },
+    // Popup quảng cáo khi mở app
+    popup: {
+      enabled: { type: Boolean, default: false },
+      title: String,
+      text: String,
+      image: String,
+      imageCredit: String,
+      ctaLabel: String,
+      ctaLink: String, // trang trong app (/shop/...) hoặc link ngoài (https://...)
+      showChannels: { type: Boolean, default: true },
+      everyHours: { type: Number, default: 24, min: 1, max: 720 }, // mỗi thiết bị thấy lại sau bao lâu
+    },
   },
   { timestamps: true },
 );
+
+// Banner quảng cáo (admin quản lý): hiện ở trang chủ / cửa hàng / kế hoạch / theo dõi
+const PromoSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 80 },
+    subtitle: { type: String, trim: true, maxlength: 160 },
+    image: String,
+    imageCredit: String,
+    ctaLabel: { type: String, trim: true, maxlength: 30, default: 'Xem ngay' },
+    link: { type: String, trim: true, maxlength: 300 }, // /shop/p/... (trong app) hoặc https://... (Shopee, Facebook…)
+    placements: { type: [String], enum: ['home', 'shop', 'plan', 'track', 'interstitial'], default: ['home'] },
+    theme: { type: String, enum: ['brand', 'warm', 'cream', 'dark', 'image'], default: 'brand' }, // image: banner tự thiết kế, không phủ chữ
+    startAt: Date,
+    endAt: Date,
+    sort: { type: Number, default: 0 },
+    active: { type: Boolean, default: true },
+    views: { type: Number, default: 0 },
+    clicks: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+);
+PromoSchema.index({ active: 1, placements: 1, sort: 1 });
 
 const OrderSchema = new Schema(
   {
@@ -300,9 +379,16 @@ const OrderSchema = new Schema(
     status: { type: String, enum: ['confirmed', 'preparing', 'shipping', 'done', 'cancelled'], default: 'confirmed', index: true },
     history: [{ status: String, at: Date, by: String }],
     adminNote: String,
+    clientRequestId: { type: String, maxlength: 64 }, // khóa chống gửi trùng (client sinh mỗi lần bấm Đặt hàng)
+    anonymized: { type: Boolean, default: false }, // tài khoản đã xóa: giữ đơn cho kế toán, xóa thông tin cá nhân
+    membershipDays: { type: Number, default: null }, // ngày sử dụng app đã cộng khi đơn được thanh toán (null = chưa cộng)
+    membershipRevoked: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
+OrderSchema.index({ user: 1, createdAt: -1 });
+OrderSchema.index({ user: 1, clientRequestId: 1 }, { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } });
+OrderSchema.index({ createdAt: -1 });
 
 const SubscriptionSchema = new Schema(
   {
@@ -359,6 +445,187 @@ const SupportRequestSchema = new Schema(
   { timestamps: true },
 );
 
+// ---- Quan sát hệ thống ----
+// Nhật ký thao tác (ai làm gì, trên dữ liệu nào, khi nào, từ đâu). Tự xóa sau 1 năm.
+const AuditLogSchema = new Schema(
+  {
+    at: { type: Date, default: Date.now },
+    actor: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    actorEmail: String,
+    actorRole: String,
+    action: { type: String, required: true }, // vd 'auth.login', 'admin.product.update', 'order.cancel'
+    entity: String, // vd 'Product', 'Order', 'User'
+    entityId: String,
+    summary: { type: String, maxlength: 300 },
+    changes: { type: Schema.Types.Mixed, default: undefined }, // { field: [trước, sau] }
+    ok: { type: Boolean, default: true },
+    ip: String,
+    ua: String,
+  },
+  { versionKey: false },
+);
+AuditLogSchema.index({ at: -1 });
+AuditLogSchema.index({ actor: 1, at: -1 });
+AuditLogSchema.index({ action: 1, at: -1 });
+AuditLogSchema.index({ entity: 1, entityId: 1, at: -1 });
+AuditLogSchema.index({ at: 1 }, { expireAfterSeconds: 365 * 86400, name: 'ttl_1y' });
+
+// Sự kiện sản phẩm (phễu onboarding, dùng tính năng, giữ chân). anon: id ẩn danh trước khi có tài khoản. Tự xóa sau ~13 tháng.
+const EventSchema = new Schema(
+  {
+    at: { type: Date, default: Date.now },
+    user: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    anon: String,
+    type: { type: String, required: true },
+    props: { type: Schema.Types.Mixed, default: undefined },
+    platform: String, // ios | android | desktop
+    standalone: Boolean, // đang mở trong app đã cài
+  },
+  { versionKey: false },
+);
+EventSchema.index({ type: 1, at: -1 });
+EventSchema.index({ user: 1, at: -1 });
+EventSchema.index({ at: 1 }, { expireAfterSeconds: 400 * 86400, name: 'ttl_400d' });
+
+// Lưu lượng API: gom theo phút × nhóm route (không ghi từng request). Tự xóa sau 30 ngày.
+const MetricSchema = new Schema(
+  {
+    minute: { type: Date, required: true },
+    route: { type: String, required: true },
+    count: Number,
+    s4xx: Number,
+    s5xx: Number,
+    sumMs: Number,
+    maxMs: Number,
+    p95: Number,
+  },
+  { versionKey: false },
+);
+MetricSchema.index({ minute: -1, route: 1 });
+MetricSchema.index({ minute: 1 }, { expireAfterSeconds: 30 * 86400, name: 'ttl_30d' });
+
+// Lịch sử trò chuyện với Nuti (+ đánh giá 👍/👎 để đo chất lượng)
+const ChatMessageSchema = new Schema(
+  {
+    user: ref('User'),
+    role: { type: String, enum: ['user', 'assistant'], required: true },
+    text: { type: String, maxlength: 4000 },
+    product: String, // slug sản phẩm được gợi ý
+    link: { to: String, label: String },
+    sources: [{ _id: false, title: String, source: String }],
+    ai: Boolean, // trả lời bằng Claude (true) hay luật dự phòng (false)
+    error: Boolean,
+    rating: { type: String, enum: ['up', 'down', null], default: null },
+  },
+  { timestamps: true },
+);
+ChatMessageSchema.index({ user: 1, createdAt: -1 });
+ChatMessageSchema.index({ rating: 1, createdAt: -1 });
+
+// Token đặt lại mật khẩu (chỉ lưu hash; tự xóa khi hết hạn)
+const PasswordResetSchema = new Schema({
+  user: ref('User'),
+  tokenHash: { type: String, required: true, unique: true },
+  expiresAt: { type: Date, required: true },
+  usedAt: Date,
+});
+PasswordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Migration đã chạy + khóa phân tán (chạy nhiều server không bị chạy trùng)
+const MigrationSchema = new Schema({ name: { type: String, unique: true }, ranAt: Date, ms: Number }, { versionKey: false });
+const LockSchema = new Schema({ key: { type: String, unique: true }, until: Date, owner: String }, { versionKey: false });
+LockSchema.index({ until: 1 }, { expireAfterSeconds: 3600 });
+
+// ---- Mã kích hoạt (in QR + mã nhập tay trên mỗi chai / gói hạt) ----
+const ActivationBatchSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 80 },
+    productSlug: String, // sản phẩm in mã (tùy chọn)
+    lot: { type: Schema.Types.ObjectId, ref: 'StockLot', default: null },
+    days: { type: Number, required: true, min: 1, max: 365 }, // ngày sử dụng mỗi mã
+    quantity: { type: Number, required: true, min: 1, max: 20000 },
+    expiresAt: { type: Date, default: null }, // hạn kích hoạt mã
+    active: { type: Boolean, default: true },
+    note: { type: String, maxlength: 200 },
+    createdBy: String,
+  },
+  { timestamps: true },
+);
+const ActivationCodeSchema = new Schema(
+  {
+    code: { type: String, required: true, unique: true }, // 10 ký tự (bỏ 0/O/1/I), in dạng XXXXX-XXXXX
+    batch: { type: Schema.Types.ObjectId, ref: 'ActivationBatch', required: true, index: true },
+    days: { type: Number, required: true },
+    status: { type: String, enum: ['new', 'used', 'void'], default: 'new', index: true },
+    usedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    usedAt: Date,
+  },
+  { versionKey: false },
+);
+ActivationCodeSchema.index({ batch: 1, status: 1 });
+
+// Sổ cộng/trừ ngày sử dụng (minh bạch: vì sao người dùng có hạn đến ngày X)
+const MembershipGrantSchema = new Schema(
+  {
+    user: ref('User'),
+    days: { type: Number, required: true }, // âm = thu hồi
+    source: { type: String, enum: ['code', 'order', 'admin', 'migration', 'revoke'], required: true },
+    ref: String, // mã kích hoạt / mã đơn
+    note: String,
+    by: String,
+    untilBefore: Date,
+    untilAfter: Date,
+  },
+  { timestamps: true },
+);
+MembershipGrantSchema.index({ user: 1, createdAt: -1 });
+
+// ---- Kho hàng: lô (hạn dùng) + phiếu xuất nhập ----
+const StockLotSchema = new Schema(
+  {
+    product: ref('Product'),
+    code: { type: String, required: true, trim: true, maxlength: 40 },
+    qty: { type: Number, required: true, min: 1 },
+    remaining: { type: Number, required: true, min: 0 },
+    mfgDate: String, // YYYY-MM-DD
+    expiryDate: { type: String, index: true },
+    cost: { type: Number, default: 0, min: 0 }, // giá vốn / đơn vị
+    note: { type: String, maxlength: 200 },
+    createdBy: String,
+  },
+  { timestamps: true },
+);
+StockLotSchema.index({ product: 1, expiryDate: 1 });
+const StockMoveSchema = new Schema(
+  {
+    product: ref('Product'),
+    type: { type: String, enum: ['import', 'sale', 'return', 'adjust', 'waste'], required: true, index: true },
+    qty: { type: Number, required: true }, // + nhập / − xuất
+    stockAfter: Number,
+    lot: { type: Schema.Types.ObjectId, ref: 'StockLot', default: null },
+    lots: [{ _id: false, lot: { type: Schema.Types.ObjectId, ref: 'StockLot' }, qty: Number }], // phân bổ theo lô (bán / hoàn)
+    order: { type: Schema.Types.ObjectId, ref: 'Order', default: null, index: true },
+    note: { type: String, maxlength: 200 },
+    by: String,
+  },
+  { timestamps: true },
+);
+StockMoveSchema.index({ product: 1, createdAt: -1 });
+StockMoveSchema.index({ createdAt: -1 });
+
+export const Promo = model('Promo', PromoSchema);
+export const ActivationBatch = model('ActivationBatch', ActivationBatchSchema);
+export const ActivationCode = model('ActivationCode', ActivationCodeSchema);
+export const MembershipGrant = model('MembershipGrant', MembershipGrantSchema);
+export const StockLot = model('StockLot', StockLotSchema);
+export const StockMove = model('StockMove', StockMoveSchema);
+export const AuditLog = model('AuditLog', AuditLogSchema);
+export const Event = model('Event', EventSchema);
+export const Metric = model('Metric', MetricSchema);
+export const ChatMessage = model('ChatMessage', ChatMessageSchema);
+export const PasswordReset = model('PasswordReset', PasswordResetSchema);
+export const Migration = model('Migration', MigrationSchema);
+export const Lock = model('Lock', LockSchema);
 export const User = model('User', UserSchema);
 export const DailyLog = model('DailyLog', DailyLogSchema);
 export const PlanChoice = model('PlanChoice', PlanChoiceSchema);

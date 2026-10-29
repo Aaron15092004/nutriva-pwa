@@ -15,7 +15,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt', // có bản mới → hiện thông báo "Cập nhật" (xem UpdatePrompt), không tự tải lại giữa chừng
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'NUTRIVA – Dinh dưỡng theo cách của bạn',
@@ -37,7 +37,8 @@ export default defineConfig({
       workbox: {
         importScripts: ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'],
-        globIgnores: ['**/img/activities/**', '**/img/plans/**'],
+        // Font: chỉ cài sẵn bộ latin + tiếng Việt (các bộ khác như cyrillic, greek không dùng)
+        globIgnores: ['**/img/activities/**', '**/img/plans/**', '**/img/products/**', '**/img/banners/**', '**/img/research/**', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,hebrew,math,symbols}-*.woff2'],
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
@@ -51,6 +52,12 @@ export default defineConfig({
             options: { cacheName: 'plan-images', expiration: { maxEntries: 60 } },
           },
           {
+            // Ảnh sản phẩm & banner: tải khi cần (không cài sẵn để lần cài app nhẹ hơn); thay ảnh cùng tên vẫn được cập nhật ở nền
+            urlPattern: ({ url }) => /^\/img\/(products|banners|research)\//.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'catalog-images', expiration: { maxEntries: 150, maxAgeSeconds: 30 * 86400 } },
+          },
+          {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/files/'),
             handler: 'CacheFirst',
             options: { cacheName: 'uploads', expiration: { maxEntries: 100 } },
@@ -59,11 +66,6 @@ export default defineConfig({
             urlPattern: ({ url }) => url.pathname.startsWith('/api/products'),
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'api-products' },
-          },
-          {
-            urlPattern: ({ url }) => url.origin.includes('fonts.g'),
-            handler: 'CacheFirst',
-            options: { cacheName: 'google-fonts', expiration: { maxEntries: 20, maxAgeSeconds: 31536000 } },
           },
         ],
       },

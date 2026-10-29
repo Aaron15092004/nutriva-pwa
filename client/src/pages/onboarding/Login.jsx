@@ -85,8 +85,11 @@ export default function Login() {
               </button>
             }
           />
+          <Link to="/forgot-password" state={{ email: form.email }} className="-mt-1 self-end py-2 text-sm font-bold text-brand-dark hover:text-brand-deep">
+            Quên mật khẩu?
+          </Link>
           <ErrorNote error={error} />
-          <PrimaryButton type="submit" loading={loading} className="mt-2 w-full">
+          <PrimaryButton type="submit" loading={loading} className="w-full">
             Đăng nhập
           </PrimaryButton>
         </form>

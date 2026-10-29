@@ -52,7 +52,7 @@ export default function EditProfile() {
 
   return (
     <>
-      <TopBar title="Hồ sơ dinh dưỡng" />
+      <TopBar title="Hồ sơ dinh dưỡng" fallback="/me" />
       <main className="flex flex-col gap-6 px-4 pb-[calc(112px+var(--safe-b))] pt-2">
         <ChipTabs
           label="Mục hồ sơ"

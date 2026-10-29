@@ -17,51 +17,76 @@ export function Logo({ size = 28, withText = true, tone = 'color', className = '
   );
 }
 
-export function TopBar({ title, back = true, onBack, actions }) {
+// Thanh tiêu đề trang con. Mở thẳng từ link/thông báo (không có trang trước trong app) → nút Quay lại về `fallback`.
+export function TopBar({ title, back = true, onBack, actions, fallback = '/' }) {
   const navigate = useNavigate();
+  const goBack = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate(fallback, { replace: true }));
   return (
-    <header className="topbar">
+    <header className="sticky top-0 z-20 grid grid-cols-[48px_1fr_48px] items-center gap-1 bg-background/90 px-2 pb-2 pt-[max(8px,env(safe-area-inset-top))] backdrop-blur">
       {back ? (
-        <button className="icon-btn" aria-label="Quay lại" onClick={onBack ?? (() => navigate(-1))}>
-          <ArrowLeft size={22} />
+        <button type="button" className="grid size-12 place-items-center rounded-full text-primary transition hover:bg-brand-light active:scale-95" aria-label="Quay lại" onClick={onBack ?? goBack}>
+          <ArrowLeft size={22} aria-hidden="true" />
         </button>
       ) : (
         <span />
       )}
-      <h1>{title}</h1>
-      <div className="actions">{actions}</div>
+      <h1 className="truncate text-center text-lg font-bold text-primary">{title}</h1>
+      <div className="flex justify-end">{actions}</div>
     </header>
   );
 }
 
-export function Sheet({ open, onClose, title, children }) {
+// hero: hình minh họa "trồi" lên trên mép sheet (vd: chai sữa) — heroH = chiều cao, phần chồng xuống sheet = heroOverlap.
+// bare: ẩn tiêu đề (vẫn đọc được tiêu đề bằng trình đọc màn hình qua aria-label), chỉ giữ nút đóng.
+export function Sheet({ open, onClose, title, children, hero, heroH = 0, heroOverlap = 0, bare = false }) {
   const ref = useRef();
+  // onClose thường là hàm tạo mới mỗi lần render → giữ trong ref để effect chỉ chạy khi mở/đóng
+  // (trước đây trang cha render lại là focus bị kéo về sheet → bàn phím điện thoại tự đóng khi đang gõ)
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    if (!open) return undefined;
+    const opener = document.activeElement;
+    const onKey = (e) => e.key === 'Escape' && closeRef.current();
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    ref.current?.focus();
+    if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
+      if (opener instanceof HTMLElement && document.contains(opener)) opener.focus({ preventScroll: true }); // trả focus về nút đã mở sheet
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   // Portal ra <body>: luôn nằm trên thanh điều hướng, không phụ thuộc stacking context của trang
   return createPortal(
     <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref}>
-        <div className="sheet-handle" />
-        <div className="sheet-head">
-          <h2>{title}</h2>
-          <button className="icon-btn" aria-label="Đóng" onClick={onClose}>
-            <X size={22} />
-          </button>
+      <div className="sheet-wrap" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+        {hero && (
+          <div className="pointer-events-none absolute inset-x-0 z-10 flex justify-center" style={{ bottom: `calc(100% - ${heroOverlap}px)`, height: heroH }} aria-hidden="true">
+            {hero}
+          </div>
+        )}
+        <div className="sheet" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref} style={hero ? { maxHeight: `calc(92dvh - ${heroH - heroOverlap}px)`, paddingTop: heroOverlap } : undefined}>
+          {bare ? (
+            <button type="button" className="absolute right-2 top-2 z-20 grid size-11 place-items-center rounded-full bg-white/85 text-primary shadow-pill transition hover:bg-white active:scale-95" aria-label="Đóng" onClick={onClose}>
+              <X size={20} aria-hidden="true" />
+            </button>
+          ) : (
+            <>
+              <div className="mx-auto mb-2 mt-1 h-1.5 w-10 rounded-full bg-divider" aria-hidden="true" />
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h2 className="text-xl font-extrabold text-brand-deep">{title}</h2>
+                <button type="button" className="grid size-11 place-items-center rounded-full text-primary transition hover:bg-brand-light active:scale-95" aria-label="Đóng" onClick={onClose}>
+                  <X size={22} aria-hidden="true" />
+                </button>
+              </div>
+            </>
+          )}
+          {children}
         </div>
-        {children}
       </div>
     </div>,
     document.body,
@@ -73,8 +98,8 @@ export function Ring({ value, max, size = 120, stroke = 12, color = 'var(--prima
   const c = 2 * Math.PI * r;
   const pct = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
   return (
-    <div className="ring" style={{ width: size, height: size }}>
-      <svg width={size} height={size} aria-hidden="true">
+    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} aria-hidden="true" className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <circle
           cx={size / 2}
@@ -86,9 +111,10 @@ export function Ring({ value, max, size = 120, stroke = 12, color = 'var(--prima
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - pct)}
+          className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
       </svg>
-      <div className="ring-label">{children}</div>
+      <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
     </div>
   );
 }
@@ -96,16 +122,24 @@ export function Ring({ value, max, size = 120, stroke = 12, color = 'var(--prima
 export function Bar({ value, max, color }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
-    <div className="bar" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemax={max} aria-valuemin={0}>
-      <i style={{ width: `${pct}%`, background: color }} />
+    <div className="h-2 overflow-hidden rounded-full bg-surface" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemax={max} aria-valuemin={0}>
+      <i className="block h-full rounded-full bg-brand-main transition-[width] duration-500" style={{ width: `${pct}%`, background: color }} />
     </div>
   );
 }
 
+// Nút có trạng thái đang xử lý. className kiểu cũ ("btn-primary btn-sm" — trang admin) giữ nguyên giao diện cũ;
+// className Tailwind thì chỉ thêm bố cục căn giữa.
 export function Button({ loading, children, className = 'btn-primary', ...props }) {
+  const legacy = /btn-/.test(className);
   return (
-    <button className={`btn ${className}`} disabled={loading || props.disabled} {...props}>
-      {loading && <Loader2 size={18} className="spin" />}
+    <button
+      type="button"
+      className={legacy ? `btn ${className}` : `inline-flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-60 ${className}`}
+      disabled={loading || props.disabled}
+      {...props}
+    >
+      {loading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
       {children}
     </button>
   );
@@ -113,19 +147,26 @@ export function Button({ loading, children, className = 'btn-primary', ...props 
 
 export function Field({ label, error, hint, children, id }) {
   return (
-    <div className="field">
-      {label && <label htmlFor={id}>{label}</label>}
+    <div className="flex flex-col gap-1">
+      {label && <label htmlFor={id} className="text-sm font-bold text-primary">{label}</label>}
       {children}
-      {error ? <span className="field-error">{error}</span> : hint && <span className="field-hint">{hint}</span>}
+      {error ? <span className="text-xs font-semibold text-warm-dark">{error}</span> : hint && <span className="text-xs text-muted">{hint}</span>}
     </div>
   );
 }
 
 export function Segmented({ options, value, onChange, label }) {
   return (
-    <div className="segmented" role="tablist" aria-label={label}>
+    <div className="grid auto-cols-fr grid-flow-col rounded-full bg-brand-soft p-1" role="tablist" aria-label={label}>
       {options.map((o) => (
-        <button key={o.id} role="tab" aria-selected={value === o.id} onClick={() => onChange(o.id)}>
+        <button
+          key={o.id}
+          type="button"
+          role="tab"
+          aria-selected={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={`min-h-10 rounded-full text-sm font-semibold transition ${value === o.id ? 'bg-brand-dark text-white shadow-pill' : 'text-brand-deep'}`}
+        >
           {o.label}
         </button>
       ))}
@@ -134,7 +175,18 @@ export function Segmented({ options, value, onChange, label }) {
 }
 
 export function Switch({ checked, onChange, label }) {
-  return <button className="switch" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} />;
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative h-8 w-[52px] shrink-0 rounded-full transition-colors ${checked ? 'bg-brand-main' : 'bg-divider'}`}
+    >
+      <span className={`absolute left-[3px] top-[3px] size-[26px] rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`} aria-hidden="true" />
+    </button>
+  );
 }
 
 export function Skeleton({ h = 120, style }) {
@@ -236,5 +288,9 @@ export function InstallGuide() {
 
 export function ErrorNote({ error }) {
   if (!error) return null;
-  return <div className="form-error" role="alert">{error}</div>;
+  return (
+    <div className="flex items-start gap-2 rounded-lg bg-error px-4 py-3 text-sm font-semibold text-warm-dark" role="alert">
+      {error}
+    </div>
+  );
 }

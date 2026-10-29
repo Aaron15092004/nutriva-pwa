@@ -4,7 +4,7 @@ import { ChevronRight, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApi } from '../../lib/useApi.js';
-import { api } from '../../lib/api.js';
+import { addExercise } from '../../lib/logs.js';
 import { today } from '../../lib/format.js';
 import { TopBar, Sheet, Skeleton, ErrorNote } from '../../components/ui.jsx';
 import { fmt, cx } from '../../components/ds/index.jsx';
@@ -48,8 +48,8 @@ export default function ActivityDetail() {
     if (!valid) return;
     setSaving(true);
     try {
-      await api.post(`/logs/${date}/exercises`, { activity: slug, variant, minutes: m });
-      toast(`Đã ghi ${a.name} • ${fmt(kcal)} kcal`);
+      const r = await addExercise(date, { activity: slug, variant, minutes: m });
+      toast(r.queued ? `Đã lưu ${a.name} trên máy — sẽ đồng bộ khi có mạng` : `Đã ghi ${a.name} • ${fmt(kcal)} kcal`);
       // Quay lại danh sách; nếu mở trực tiếp (không có lịch sử) thì chuyển về danh sách
       if (window.history.state?.idx > 0) navigate(-1);
       else navigate(`/activities?date=${date}`, { replace: true });
@@ -62,6 +62,7 @@ export default function ActivityDetail() {
   return (
     <>
       <TopBar
+        fallback="/activities"
         title={a?.name ?? 'Hoạt động'}
         actions={
           <button type="button" onClick={save} disabled={!a || !valid || saving} className="min-h-11 px-2 text-base font-bold text-brand-dark disabled:text-divider">

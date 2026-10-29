@@ -7,6 +7,7 @@ import { usePwa } from '../context/PwaContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useApi } from '../lib/useApi.js';
 import { api } from '../lib/api.js';
+import { changeWater, logPlanMeal } from '../lib/logs.js';
 import { today, longDate, weekStart, addDays } from '../lib/format.js';
 import { Skeleton } from '../components/ui.jsx';
 import { SectionHeader, fmt } from '../components/ds/index.jsx';
@@ -16,6 +17,11 @@ import SummaryCarousel from '../components/home/SummaryCarousel.jsx';
 import MealCard from '../components/home/MealCard.jsx';
 import TrackerCard from '../components/home/TrackerCard.jsx';
 import RecommendationCard from '../components/home/RecommendationCard.jsx';
+import PlanMealCard from '../components/home/PlanMealCard.jsx';
+import MilkSpotlight from '../components/home/MilkSpotlight.jsx';
+import { LockedCard } from '../components/membership/Paywall.jsx';
+import MembershipBanner from '../components/membership/MembershipBanner.jsx';
+import { MilkTracker, TreatStrip, useMilkPicks } from '../components/promo/MilkToday.jsx';
 import MealSheet from '../components/MealSheet.jsx';
 import { WaterSheet } from '../components/ActivitySheets.jsx';
 import { FOOD_ICON, sumLog } from '../components/meals.js';
@@ -78,7 +84,11 @@ export default function Home() {
   const { data, setData, loading } = useApi(`/logs/${date}`);
   const start = weekStart(date);
   const week = useApi(`/logs?from=${start}&to=${addDays(start, 6)}`);
-  const plan = useApi(`/plan/day?date=${date}`);
+  // Đang áp dụng kế hoạch ăn → gợi ý hôm nay lấy từ kế hoạch đó; chưa có → gợi ý tự động
+  const menu = useApi(user.activePlan ? `/meal-plans/today?date=${date}` : null);
+  const usePlan = Boolean(user.activePlan && menu.data?.plan && !menu.data.locked);
+  const planLocked = Boolean(menu.data?.locked);
+  const plan = useApi(user.activePlan && (menu.loading || usePlan || planLocked) ? null : `/plan/day?date=${date}`);
   const suggest = useApi('/foods/suggest');
   const reminders = useApi('/reminders');
   const [sheet, setSheet] = useState(null); // { kind: 'meal'|'water', meal?, food? }
@@ -111,11 +121,13 @@ export default function Home() {
   }, [week.data, log, date, eaten.kcal, h.targetKcal]);
 
   const onLog = (l) => setData({ log: l });
+  const { milk } = useMilkPicks();
 
   const addWater = async () => {
     try {
-      onLog((await api.post(`/logs/${date}/water`, { ml: 200 })).log);
-      toast('Đã thêm 200 ml nước');
+      const r = await changeWater(date, log, 200);
+      onLog(r.log);
+      toast(r.queued ? 'Đã lưu 200 ml trên máy — sẽ đồng bộ khi có mạng' : 'Đã thêm 200 ml nước');
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -157,6 +169,21 @@ export default function Home() {
   };
 
   const isTracked = (m) => (log?.meals?.[m.meal] ?? []).some((x) => x.name === m.item.name);
+  const loggedNames = (meal) => new Set((log?.meals?.[meal] ?? []).map((x) => x.name));
+
+  const trackPlanMeal = async (m) => {
+    const done = loggedNames(m.meal);
+    const todo = m.items.filter((it) => !it.missing && !done.has(it.name));
+    setTracking(m.meal);
+    try {
+      onLog(await logPlanMeal(date, m.meal, todo));
+      toast(`Đã ghi ${todo.length} món vào ${m.label.toLowerCase()}`);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setTracking(null);
+    }
+  };
 
   return (
     <main className="relative min-h-dvh overflow-x-clip bg-gradient-to-b from-background via-surface to-background pb-[calc(var(--nav-h)+var(--safe-b)+24px)]">
@@ -173,6 +200,10 @@ export default function Home() {
 
         <SummaryCarousel goalLabel={goal} health={h} profile={user.profile} eaten={eaten} burned={burned} />
 
+        <MilkSpotlight className="-mt-6" />
+
+        <MembershipBanner />
+
         <section aria-labelledby="eaten-title" className="flex flex-col gap-4">
           <SectionHeader id="eaten-title" title="Đã ăn" action="Chọn kế hoạch" to="/plan" />
           {loading && !log ? (
@@ -184,7 +215,8 @@ export default function Home() {
           )}
         </section>
 
-        <section aria-label="Nước và vận động" className="flex flex-col gap-4">
+        <section aria-label="Sữa hạt, nước và vận động" className="flex flex-col gap-4">
+          <MilkTracker date={date} log={log} onLog={onLog} onOpen={() => navigate(milk ? `/shop/p/${milk.slug}` : '/shop')} />
           <TrackerCard
             icon={GlassWater}
             iconClass="bg-water-icon text-white"
@@ -208,12 +240,34 @@ export default function Home() {
         </section>
 
         <section aria-labelledby="rec-title" className="flex flex-col gap-4">
-          <SectionHeader id="rec-title" title="Món gợi ý hôm nay" action="Xem tất cả" to={`/plan?view=day&date=${date}`} />
-          {plan.loading ? (
+          <SectionHeader id="rec-title" title={usePlan ? `Thực đơn theo “${menu.data.plan.title}”` : 'Món gợi ý hôm nay'} action="Xem tất cả" to={`/plan?view=day&date=${date}`} />
+          {usePlan ? (
+            <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {menu.data.day.meals
+                .filter((m) => m.items.length)
+                .map((m) => {
+                  const done = loggedNames(m.meal);
+                  return (
+                    <PlanMealCard
+                      key={m.meal}
+                      meal={m.meal}
+                      label={m.label}
+                      items={m.items}
+                      kcal={m.kcal}
+                      logged={m.items.every((it) => it.missing || done.has(it.name))}
+                      busy={tracking === m.meal}
+                      onLog={() => trackPlanMeal(m)}
+                    />
+                  );
+                })}
+            </div>
+          ) : planLocked || plan.data?.locked ? (
+            <LockedCard compact title="Thực đơn hôm nay đã khóa" text="Quét mã trên chai sữa để mở trọn 7 ngày." />
+          ) : plan.loading || menu.loading ? (
             <Skeleton h={320} />
           ) : (
             <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {(plan.data?.day.meals ?? []).map((m) => (
+              {(plan.data?.day?.meals ?? []).map((m) => (
                 <RecommendationCard
                   key={m.meal}
                   item={{ ...m.item, meal: m.meal }}
@@ -228,6 +282,8 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        <TreatStrip />
 
         <section aria-labelledby="food-title" className="flex flex-col gap-4">
           <SectionHeader id="food-title" title="Thực phẩm phù hợp với bạn" />

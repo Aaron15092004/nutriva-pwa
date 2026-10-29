@@ -53,8 +53,8 @@ export const colors = {
 };
 
 export const fonts = {
-  sans: ['"Nunito Sans"', 'system-ui', '-apple-system', '"Segoe UI"', 'Roboto', 'sans-serif'],
-  secondary: ['Inter', 'system-ui', 'sans-serif'],
-  display: ['Fraunces', 'Georgia', 'serif'], // tiêu đề, quảng cáo
+  sans: ['"Nunito Sans Variable"', '"Nunito Sans"', 'system-ui', '-apple-system', '"Segoe UI"', 'Roboto', 'sans-serif'],
+  secondary: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
+  display: ['"Fraunces Variable"', 'Fraunces', 'Georgia', 'serif'], // tiêu đề, quảng cáo
   script: ['"Dancing Script"', 'cursive'], // slogan ngắn
 };

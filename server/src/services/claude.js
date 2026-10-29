@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { GOALS, FLAVORS, SWEETNESS, ACTIVITY_LEVELS, DIETS, ingredientName } from '../../../shared/nutrition.js';
+import { GOALS, FLAVORS, SWEETNESS, ACTIVITY_LEVELS, DIETS, ingredientName, profileAge } from '../../../shared/nutrition.js';
 import { safeProducts } from './plan.js';
 
 // Trợ lý NUTRIVA dùng Claude API. Cần ANTHROPIC_API_KEY (hoặc credential khác SDK tự nhận).
@@ -29,10 +29,10 @@ function userContext(user, health, products, today) {
   const p = user.profile;
   const safe = safeProducts(products, p);
   const catalog = safe
-    .map((x) => `- ${x.slug} | ${x.type === 'diy' ? 'Set tự làm' : 'Sữa hạt'} ${x.name} | ${x.price}đ | ${label(FLAVORS, x.flavor)} | ${x.nutrition.kcal} kcal, đạm ${x.nutrition.protein} g`)
+    .map((x) => `- ${x.slug} | ${x.type === 'diy' ? 'Gói hạt tự nấu' : 'Sữa hạt'} ${x.name} | ${x.price}đ | ${label(FLAVORS, x.flavor)} | ${x.nutrition.kcal} kcal, đạm ${x.nutrition.protein} g`)
     .join('\n');
   const plan = today.plan.meals.map((m) => `- ${m.label}: ${m.item.name} (~${m.item.kcal} kcal)`).join('\n');
-  return `Người dùng: ${user.name}, ${p.gender === 'male' ? 'nam' : 'nữ'}, ${p.age} tuổi, ${p.heightCm} cm, ${p.weightKg} kg, vòng eo ${p.waistCm} cm.
+  return `Người dùng: ${user.name}, ${p.gender === 'male' ? 'nam' : 'nữ'}, ${profileAge(p)} tuổi, ${p.heightCm} cm, ${p.weightKg} kg, vòng eo ${p.waistCm} cm${p.waistEstimated ? ' (ước tính, chưa đo)' : ''}.
 Mục tiêu: ${label(GOALS, p.goal)}. Vận động: ${label(ACTIVITY_LEVELS, p.activity)}. Chế độ ăn: ${label(DIETS, p.diet)}.
 Khẩu vị: ${label(FLAVORS, p.flavor)}, ${label(SWEETNESS, p.sweetness)}; thích ${p.preference === 'diy' ? 'tự làm tại nhà' : 'sữa pha sẵn'}.
 Cần tránh: ${p.allergies.length ? p.allergies.map(ingredientName).join(', ') : 'không có'}. Lưu ý sức khỏe: ${p.healthNote || 'không có'}.

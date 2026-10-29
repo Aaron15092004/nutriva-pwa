@@ -11,8 +11,10 @@ export async function getSettings() {
   return cache;
 }
 
+// Xóa cache ở server này + tăng catalogVersion để các server khác cũng làm mới (xem watchCacheVersion)
 export const invalidateSettings = () => {
   cache = null;
+  bumpVersion();
 };
 
 // Danh mục ít thay đổi → cache trong bộ nhớ (gộp các request đồng thời), xóa cache khi admin sửa.
@@ -46,9 +48,40 @@ const withId = (d) => ({ ...d, id: d.key });
 export const loadProducts = memo(10_000, () => Product.find({ active: true }).sort({ sort: 1, createdAt: 1 }).lean());
 export const loadFoods = memo(5 * 60_000, async () => (await Food.find({ active: true }).sort({ group: 1, name: 1 }).lean()).map(withId));
 export const loadDishes = memo(5 * 60_000, async () => (await Dish.find({ active: true }).sort({ meal: 1, key: 1 }).lean()).map(withId));
+// Gồm cả mục đã tắt: dùng để hiển thị kế hoạch / thực đơn cũ (món đã ngừng vẫn hiện đúng tên & dinh dưỡng thay vì "không tìm thấy")
+export const loadAllFoods = memo(5 * 60_000, async () => (await Food.find().lean()).map(withId));
+export const loadAllDishes = memo(5 * 60_000, async () => (await Dish.find().lean()).map(withId));
+
+const clearCatalog = () => {
+  for (const m of [loadProducts, loadFoods, loadDishes, loadAllFoods, loadAllDishes]) m.clear();
+};
 
 export function invalidateCatalog() {
-  loadProducts.clear();
-  loadFoods.clear();
-  loadDishes.clear();
+  clearCatalog();
+  bumpVersion();
+}
+
+// ---- Đồng bộ cache giữa nhiều server ----
+let seenVersion = null;
+function bumpVersion() {
+  Setting.updateOne({ key: 'main' }, { $inc: { catalogVersion: 1 } }, { upsert: true })
+    .then(() => Setting.findOne({ key: 'main' }, { catalogVersion: 1 }).lean())
+    .then((s) => {
+      seenVersion = s?.catalogVersion ?? seenVersion;
+    })
+    .catch((e) => console.error('[cache]', e.message));
+}
+
+export function watchCacheVersion(everyMs = 20_000) {
+  const check = async () => {
+    const s = await Setting.findOne({ key: 'main' }, { catalogVersion: 1 }).lean();
+    const v = s?.catalogVersion ?? 0;
+    if (seenVersion !== null && v !== seenVersion) {
+      cache = null;
+      clearCatalog();
+    }
+    seenVersion = v;
+  };
+  check().catch(() => {});
+  setInterval(() => check().catch(() => {}), everyMs).unref?.();
 }

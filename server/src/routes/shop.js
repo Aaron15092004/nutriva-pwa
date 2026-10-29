@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { Product, Order, Subscription, Coupon } from '../models/index.js';
+import mongoose from 'mongoose';
+import { Product, Order, Subscription, Coupon, User, Promo } from '../models/index.js';
+import { eventsLimiter } from '../middleware/limits.js';
+import { DEFAULTS as MEMBERSHIP_DEFAULTS, revokeForOrder } from '../services/membership.js';
+
+const INTERSTITIAL_DEFAULTS = { enabled: true, everyNav: 6, minMinutes: 5, skipSeconds: 3, maxPerDay: 4, skipMembers: false };
+import { placeOrder, cancelOrder } from '../services/orders.js';
+import { track } from '../services/events.js';
 import { ah, requireAuth, HttpError } from '../middleware/auth.js';
 import { explainProduct } from '../services/recommend.js';
 import { getSettings, loadProducts } from '../services/catalog.js';
@@ -39,7 +46,41 @@ router.get(
       freeShipFrom: s.freeShipFrom ?? 0,
       bank: s.bank?.accountNo ? s.bank : null,
       store: s.store ?? {},
+      // Kênh bán hàng chính thức (chỉ kênh đã có link) + popup quảng cáo khi mở app
+      channels: (s.channels ?? []).filter((c) => /^https?:\/\//.test(c.url ?? '')),
+      popup: s.popup?.enabled ? { ...s.popup, enabled: undefined } : null,
+      // Quảng cáo toàn màn hình khi chuyển trang (tần suất do admin cấu hình)
+      interstitial: { ...INTERSTITIAL_DEFAULTS, ...(s.interstitial ?? {}) },
+      // Thông tin gói sử dụng để hiển thị (mỗi chai cộng bao nhiêu ngày…)
+      membership: { ...MEMBERSHIP_DEFAULTS, ...(s.membership ?? {}) },
     });
+  }),
+);
+
+// ---- Banner quảng cáo (công khai) ----
+router.get(
+  '/promos',
+  ah(async (req, res) => {
+    const now = new Date();
+    const where = {
+      active: true,
+      $and: [{ $or: [{ startAt: null }, { startAt: { $lte: now } }] }, { $or: [{ endAt: null }, { endAt: { $gte: now } }] }],
+    };
+    if (typeof req.query.placement === 'string') where.placements = req.query.placement;
+    const promos = await Promo.find(where).sort({ sort: 1, createdAt: -1 }).limit(8).select('-views -clicks').lean();
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({ promos });
+  }),
+);
+
+// Đếm lượt xem / bấm banner (tỉ lệ bấm hiện ở Admin → Quảng cáo)
+router.post(
+  '/promos/:id/hit',
+  eventsLimiter,
+  ah(async (req, res) => {
+    const kind = req.body?.kind === 'click' ? 'clicks' : 'views';
+    if (mongoose.isValidObjectId(req.params.id)) await Promo.updateOne({ _id: req.params.id }, { $inc: { [kind]: 1 } });
+    res.status(204).end();
   }),
 );
 
@@ -123,38 +164,28 @@ router.post(
     if (payment === 'bank' && !(await getSettings()).bank?.accountNo) throw new HttpError(400, 'Cửa hàng chưa hỗ trợ chuyển khoản, vui lòng chọn thanh toán khi nhận hàng');
 
     const q = await quote({ ...req.body, method: delivery.method }, req.user._id);
+    const clientRequestId = typeof req.body.clientRequestId === 'string' ? req.body.clientRequestId.slice(0, 64) : undefined;
+    const { order, duplicate } = await placeOrder(
+      {
+        user: req.user._id,
+        items: q.lines,
+        subtotal: q.subtotal,
+        discount: q.discount,
+        coupon: q.coupon,
+        shippingFee: q.shippingFee,
+        total: q.total,
+        delivery: { method: delivery.method, date: delivery.date, slot: String(delivery.slot).slice(0, 30) },
+        address: { name: address.name.trim(), phone: address.phone.trim(), line: address.line?.trim() ?? '' },
+        payment,
+        clientRequestId,
+        history: [{ status: 'confirmed', at: new Date(), by: 'user' }],
+      },
+      { couponId: q.couponId },
+    );
+    if (duplicate) return res.json({ order });
 
-    // Trừ tồn kho có điều kiện (không âm); hoàn lại nếu một dòng thất bại
-    const taken = [];
-    for (const l of q.lines) {
-      const r = await Product.updateOne({ _id: l.product, $or: [{ stock: null }, { stock: { $gte: l.qty } }] }, [
-        { $set: { stock: { $cond: [{ $eq: ['$stock', null] }, null, { $subtract: ['$stock', l.qty] }] } } },
-      ]);
-      if (!r.modifiedCount && !r.matchedCount) {
-        for (const t of taken) await Product.updateOne({ _id: t.product, stock: { $ne: null } }, { $inc: { stock: t.qty } });
-        throw new HttpError(409, `"${l.name}" vừa hết hàng`);
-      }
-      taken.push(l);
-    }
-    if (q.couponId) await Coupon.updateOne({ _id: q.couponId }, { $inc: { usedCount: 1 } });
-
-    const order = await Order.create({
-      user: req.user._id,
-      code: `NTV-${Date.now().toString(36).toUpperCase().slice(-6)}`,
-      items: q.lines,
-      subtotal: q.subtotal,
-      discount: q.discount,
-      coupon: q.coupon,
-      shippingFee: q.shippingFee,
-      total: q.total,
-      delivery: { method: delivery.method, date: delivery.date, slot: String(delivery.slot).slice(0, 30) },
-      address: { name: address.name.trim(), phone: address.phone.trim(), line: address.line?.trim() ?? '' },
-      payment,
-      history: [{ status: 'confirmed', at: new Date(), by: 'user' }],
-    });
-
-    req.user.address = order.address;
-    await req.user.save();
+    await User.updateOne({ _id: req.user._id }, { address: order.address });
+    track('order.place', { user: req.user, req, props: { total: order.total, items: order.items.length, coupon: order.coupon ?? null, payment } });
     res.status(201).json({ order });
   }),
 );
@@ -173,21 +204,17 @@ router.get(
   }),
 );
 
-export async function restock(order) {
-  for (const i of order.items) await Product.updateOne({ _id: i.product, stock: { $ne: null } }, { $inc: { stock: i.qty } });
-}
-
 router.post(
   '/orders/:id/cancel',
   ah(async (req, res) => {
-    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
-    if (!order) throw new HttpError(404, 'Không tìm thấy đơn hàng');
-    if (order.status !== 'confirmed') throw new HttpError(400, 'Đơn đã được chuẩn bị, vui lòng liên hệ hỗ trợ để hủy');
-    order.status = 'cancelled';
-    order.history.push({ status: 'cancelled', at: new Date(), by: 'user' });
-    await order.save();
-    await restock(order);
-    res.json({ order });
+    const order = await cancelOrder({ _id: req.params.id, user: req.user._id }, { by: 'user', from: ['confirmed'] });
+    if (order) {
+      await revokeForOrder(order._id, 'Khách hủy đơn'); // đơn chuyển khoản đã xác nhận rồi hủy → thu hồi ngày đã cộng
+      track('order.cancel', { user: req.user, req, props: { by: 'user', total: order.total } });
+      return res.json({ order });
+    }
+    if (!(await Order.exists({ _id: req.params.id, user: req.user._id }))) throw new HttpError(404, 'Không tìm thấy đơn hàng');
+    throw new HttpError(400, 'Đơn đã được chuẩn bị hoặc đã hủy, vui lòng liên hệ hỗ trợ');
   }),
 );
 

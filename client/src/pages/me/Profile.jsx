@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Settings, Crown, Package, CalendarDays, MessageSquareHeart, Flag, Plus } from 'lucide-react';
+import { ArrowLeft, Settings, Crown, Package, CalendarDays, MessageSquareHeart, Flag, Plus, QrCode } from 'lucide-react';
+import { useMembership, fmtDate, memberState } from '../../lib/membership.js';
 import { GOALS } from '@shared/nutrition.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApi } from '../../lib/useApi.js';
 import { api } from '../../lib/api.js';
 import { today, addDays, weekdayShort, dayNum } from '../../lib/format.js';
-import { Sheet, Button, ErrorNote, Skeleton } from '../../components/ui.jsx';
+import { Sheet, ErrorNote, Skeleton } from '../../components/ui.jsx';
+import { TextField, PrimaryButton } from '../../components/ds/form.jsx';
 import { CircleButton, fmt, cx } from '../../components/ds/index.jsx';
 import { BarChart, LineChart, BmiScale, ChipTabs } from '../../components/ds/charts.jsx';
 import { HeroBackdrop } from '../../components/home/HomeHeader.jsx';
@@ -90,20 +92,34 @@ function WeightSheet({ open, onClose, current, onSaved }) {
     <Sheet open={open} onClose={onClose} title="Ghi cân nặng">
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
-          <div className="field">
-            <label htmlFor="w-kg">Cân nặng</label>
-            <div className="input-wrap"><input id="w-kg" type="number" inputMode="decimal" step="0.1" min="25" max="250" value={kg} onChange={(e) => setKg(e.target.value)} /><span className="unit">kg</span></div>
-          </div>
-          <div className="field">
-            <label htmlFor="w-date">Ngày</label>
-            <div className="input-wrap"><input id="w-date" type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          </div>
+          <TextField id="w-kg" label="Cân nặng" unit="kg" type="number" inputMode="decimal" step="0.1" min="25" max="250" value={kg} onChange={(e) => setKg(e.target.value)} />
+          <TextField id="w-date" label="Ngày" type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <p className="text-xs text-muted">Nên cân vào buổi sáng, trước khi ăn, để số liệu ổn định.</p>
         <ErrorNote error={error} />
-        <Button className="btn-primary btn-block" loading={busy} disabled={!kg} onClick={save}>Lưu cân nặng</Button>
+        <PrimaryButton loading={busy} disabled={!kg} onClick={save} className="w-full">
+          Lưu cân nặng
+        </PrimaryButton>
       </div>
     </Sheet>
+  );
+}
+
+// Thẻ gói NUTRIVA: còn bao nhiêu ngày / đang dùng thử + nút kích hoạt mã
+function MembershipCard() {
+  const { m } = useMembership();
+  if (!m?.enabled) return null;
+  return (
+    <Link to="/me/membership" className={cx('flex items-center gap-4 rounded-xl p-4 shadow-card transition active:scale-[0.99]', m.member ? 'bg-brand-core text-white' : 'bg-white')}>
+      <span className={cx('grid size-12 shrink-0 place-items-center rounded-full', m.member ? 'bg-white/15' : 'bg-brand-light text-brand-dark')} aria-hidden="true">
+        <QrCode size={22} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={cx('block text-base font-bold', m.member ? '' : 'text-primary')}>{{ member: `Gói NUTRIVA • còn ${m.daysLeft} ngày`, expired: 'Gói NUTRIVA đã hết hạn', trial: `Dùng thử • còn ${m.trialLeft} ngày`, over: 'Hết thời gian dùng thử' }[memberState(m)]}</span>
+        <span className={cx('block text-xs', m.member ? 'text-brand-soft' : 'text-muted')}>{m.member ? `Dùng đến ${fmtDate(m.until)} • quét mã trên chai để cộng thêm` : 'Quét / nhập mã trên chai sữa để mở khóa'}</span>
+      </span>
+      <span className={cx('inline-flex h-9 shrink-0 items-center rounded-full px-4 text-xs font-bold', m.member ? 'bg-white text-brand-core' : 'bg-brand-dark text-white')}>{m.member ? 'Gia hạn' : 'Kích hoạt'}</span>
+    </Link>
   );
 }
 
@@ -179,6 +195,8 @@ export default function Profile() {
             </p>
           </div>
         </section>
+
+        <MembershipCard />
 
         <nav aria-label="Lối tắt" className="grid grid-cols-2 gap-4">
           <ShortcutTile to="/orders" icon={Package} title="Đơn hàng" sub={orders.data ? `${orders.data.orders.length} đơn hàng` : '…'} />

@@ -12,7 +12,7 @@ const norm = (s) =>
 const has = (text, ...words) => words.some((w) => text.includes(norm(w)));
 const fmt = (n) => n.toLocaleString('vi-VN');
 
-const card = (p) => ({ slug: p.slug, name: p.name, type: p.type, image: p.image, price: p.price, subtitle: p.subtitle });
+export const card = (p) => ({ slug: p.slug, name: p.name, type: p.type, image: p.image, price: p.price, subtitle: p.subtitle });
 
 export function replyByRules(message, user, products) {
   const t = norm(message);
@@ -45,7 +45,7 @@ export function replyByRules(message, user, products) {
     const s = sets.find((p) => p.flavor === profile.flavor) ?? sets[0];
     return {
       text: s
-        ? `Set tự làm ${s.name} gồm nguyên liệu đã chia phần cho khoảng 1 lít sữa, kèm hướng dẫn 4 bước (chuẩn bị – sơ chế – chế biến – bảo quản). Bạn có thể đổi sang set khác bất cứ lúc nào trong Cửa hàng.`
+        ? `Gói hạt tự nấu ${s.name} gồm nguyên liệu đã chia phần cho khoảng 1 lít sữa, kèm hướng dẫn 4 bước (chuẩn bị – sơ chế – chế biến – bảo quản). Bạn có thể đổi sang gói khác bất cứ lúc nào trong Cửa hàng.`
         : 'Chưa có set tự làm nào an toàn với danh sách thực phẩm cần tránh của bạn.',
       product: s ? card(s) : undefined,
     };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Share2, ShoppingCart, Leaf, Candy, ChevronDown, ChevronRight, Nut, Droplet, PlayCircle, CheckCircle2, AlertTriangle, HelpCircle, BookOpen, Package, Flame } from 'lucide-react';
-import { ingredientName, FLAVORS } from '@shared/nutrition.js';
+import { ingredientName, FLAVORS, productTypeOf } from '@shared/nutrition.js';
 import { useApi } from '../../lib/useApi.js';
 import { money, num } from '../../lib/format.js';
 import { useCart } from '../../context/CartContext.jsx';
@@ -12,6 +12,8 @@ import { CircleButton, cx } from '../../components/ds/index.jsx';
 import { MacroLine } from '../../components/plan/PlanParts.jsx';
 import ProductImage from '../../components/ProductImage.jsx';
 import { QtyStepper } from '../../components/shop/ShopParts.jsx';
+import ChannelLinks, { useChannels } from '../../components/promo/ChannelLinks.jsx';
+import { TreatStrip } from '../../components/promo/MilkToday.jsx';
 
 // Mục mở/đóng: chiều cao chuyển động bằng grid-rows 0fr → 1fr (mượt, không cần đo DOM)
 function Accordion({ icon: Icon, title, aside, children }) {
@@ -63,6 +65,11 @@ export default function ProductDetail() {
   const p = data?.product;
   const conflicts = p ? p.ingredients.filter((i) => user.profile.allergies.includes(i)) : [];
   const isDiy = p?.type === 'diy';
+  const isTreat = p?.type === 'treat';
+  const channels = useChannels();
+  const mcfg = useApi('/shop/config').data?.membership;
+  // Mỗi chai / gói kèm mã kích hoạt: cộng N ngày dùng app (sản phẩm có thể đặt riêng, không thì theo loại)
+  const memberDays = p ? (p.membershipDays ?? { milk: mcfg?.daysPerBottle, diy: mcfg?.daysPerSet, treat: mcfg?.daysPerTreat }[p.type] ?? 0) : 0;
   const soldOut = p?.stock === 0;
   const maxQty = Math.min(50, p?.stock ?? 50);
   const back = () => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/shop'));
@@ -81,7 +88,7 @@ export default function ProductDetail() {
   };
 
   const addToCart = () => {
-    cart.add(p, qty, isDiy ? 'none' : sweet);
+    cart.add(p, qty, isDiy || isTreat ? 'none' : sweet);
     toast(`Đã thêm ${qty} sản phẩm vào giỏ`);
   };
 
@@ -109,6 +116,7 @@ export default function ProductDetail() {
       <main className="relative min-h-dvh overflow-x-clip bg-background pb-[calc(120px+var(--safe-b))]">
         <div className="relative bg-brand-light">
           <ProductImage product={p} ratio={isDiy ? '292/252' : '4/3'} />
+          {p.imageCredit && <span className="absolute bottom-8 right-2 max-w-[70%] truncate text-[10px] text-white/80 [text-shadow:0_1px_2px_rgba(0,0,0,.6)]">{p.imageCredit}</span>}
           <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
             <CircleButton icon={ArrowLeft} label="Quay lại" onClick={back} className="bg-white/95 text-primary shadow-pill" size={48} iconSize={22} />
             <span className="flex gap-2">
@@ -128,12 +136,14 @@ export default function ProductDetail() {
         <div className="relative -mt-6 flex flex-col gap-6 rounded-t-xl bg-background px-4 pt-6">
           <section className="flex flex-col gap-2">
             <span className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-brand-light px-4 py-1 font-secondary text-xs font-bold text-brand-deep">{isDiy ? 'Set tự làm tại nhà' : 'Sữa hạt pha sẵn'}</span>
+              <span className="rounded-full bg-brand-light px-4 py-1 font-secondary text-xs font-bold text-brand-deep">{productTypeOf(p.type).label}</span>
+              {p.badge && <span className="rounded-full bg-warm-main px-4 py-1 font-secondary text-xs font-bold text-white">{p.badge}</span>}
+              {memberDays > 0 && <span className="rounded-full bg-brand-core px-4 py-1 font-secondary text-xs font-bold text-white">+{memberDays} ngày dùng app / {isDiy ? 'gói' : 'chai'}</span>}
               <span className="rounded-full bg-surface px-4 py-1 font-secondary text-xs font-semibold text-secondary">{FLAVORS.find((f) => f.id === p.flavor)?.label}</span>
               {p.stock != null && p.stock > 0 && p.stock <= 10 && <span className="rounded-full bg-warm-light px-4 py-1 font-secondary text-xs font-bold text-warm-dark">Chỉ còn {p.stock}</span>}
             </span>
             <h1 className="text-2xl font-extrabold text-primary">{p.name}</h1>
-            <p className="text-sm text-muted">{p.subtitle?.includes(p.size) ? p.subtitle : [p.subtitle, p.size].filter(Boolean).join(' • ')}</p>
+            <p className="text-sm text-muted">{p.subtitle?.toLowerCase().includes(p.size?.toLowerCase() ?? '') ? p.subtitle : [p.subtitle, p.size].filter(Boolean).join(' • ')}</p>
             <p className="font-secondary text-2xl font-bold text-brand-dark">{money(p.price)}</p>
             {p.description && (
               <div>
@@ -163,7 +173,7 @@ export default function ProductDetail() {
             <div className="min-w-0 flex-1">
               <p className="flex items-baseline gap-1">
                 <b className="font-secondary text-xl text-primary">{num(n.kcal)}</b>
-                <span className="text-sm text-muted">kcal / {isDiy ? '330 ml thành phẩm' : 'chai'}</span>
+                <span className="text-sm text-muted">kcal / {isDiy ? '330 ml thành phẩm' : isTreat ? 'phần ăn' : 'chai'}</span>
               </p>
               <MacroLine protein={n.protein} carb={n.carb} fat={n.fat} />
             </div>
@@ -171,7 +181,7 @@ export default function ProductDetail() {
 
           {isDiy ? (
             <section className="flex flex-col gap-2 rounded-xl bg-breakfast-card p-4">
-              <h2 className="text-base font-bold text-primary">Trong set có</h2>
+              <h2 className="text-base font-bold text-primary">Trong gói có</h2>
               {[...p.ingredients.map((i) => `${ingredientName(i)} đã chọn lọc`), ...p.extraIngredients, 'Hướng dẫn chi tiết kèm theo'].map((t) => (
                 <span key={t} className="flex items-center gap-2 text-sm text-secondary">
                   <CheckCircle2 size={18} className="shrink-0 text-brand-dark" aria-hidden="true" /> {t}
@@ -193,11 +203,14 @@ export default function ProductDetail() {
                       <Leaf size={16} className="text-brand-main" aria-hidden="true" /> {x}
                     </span>
                   ))}
-                  <span className="inline-flex h-9 items-center gap-1 rounded-full bg-white px-4 text-sm text-secondary shadow-pill">
-                    <Droplet size={16} className="text-water-icon" aria-hidden="true" /> Nước
-                  </span>
+                  {!isTreat && (
+                    <span className="inline-flex h-9 items-center gap-1 rounded-full bg-white px-4 text-sm text-secondary shadow-pill">
+                      <Droplet size={16} className="text-water-icon" aria-hidden="true" /> Nước
+                    </span>
+                  )}
                 </div>
               </section>
+              {!isTreat && (
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-2 text-base font-bold text-primary">Chọn độ ngọt</legend>
                 <div className="grid grid-cols-2 gap-2">
@@ -205,6 +218,7 @@ export default function ProductDetail() {
                   <SweetOption active={sweet === 'low'} icon={Candy} label="Ít ngọt" onClick={() => setSweet('low')} />
                 </div>
               </fieldset>
+              )}
             </>
           )}
 
@@ -222,19 +236,28 @@ export default function ProductDetail() {
             <Accordion icon={Package} title={isDiy ? 'Thông tin bảo quản' : 'Bảo quản & hạn dùng'}>{p.storage}</Accordion>
           </section>
 
-          {!isDiy && (
+          {p.type === 'milk' && (
             <Link to={`/why/${p.slug}`} className="inline-flex min-h-10 items-center gap-2 self-start text-sm font-bold text-brand-dark hover:text-brand-deep">
               <HelpCircle size={18} aria-hidden="true" /> Vì sao sản phẩm này hợp với bạn?
             </Link>
           )}
 
+          {channels.length > 0 && (
+            <section aria-labelledby="buy-elsewhere" className="flex flex-col gap-2">
+              <h2 id="buy-elsewhere" className="text-base font-bold text-primary">Cũng có tại gian hàng chính thức</h2>
+              <ChannelLinks channels={channels} from={`product:${p.slug}`} />
+            </section>
+          )}
+
+          {isTreat && <TreatStrip title="Món khác từ sữa hạt" id="more-treats" exclude={p.slug} />}
+
           {data.sibling && (
             <Link to={`/shop/p/${data.sibling.slug}`} replace className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-card transition hover:shadow-float active:scale-[0.99]">
               <ProductImage product={data.sibling} ratio="1/1" className="w-16 shrink-0 rounded-md" />
               <span className="min-w-0 flex-1">
-                <b className="block text-base text-primary">{isDiy ? 'Mua sữa pha sẵn' : 'Muốn tự làm tại nhà?'}</b>
+                <b className="block text-base text-primary">{isDiy ? 'Mua sữa pha sẵn' : 'Muốn tự nấu tại nhà?'}</b>
                 <span className="text-sm text-muted">
-                  {isDiy ? 'Chai 330 ml, tiện lợi mỗi ngày' : 'Set nguyên liệu cùng dòng'} — {money(data.sibling.price)}
+                  {isDiy ? 'Chai 330 ml, tiện lợi mỗi ngày' : 'Gói hạt tự nấu cùng vị (100 g)'} — {money(data.sibling.price)}
                 </span>
               </span>
               <ChevronRight size={20} className="text-subtle" aria-hidden="true" />

@@ -15,6 +15,13 @@ const load = () => {
 export function CartProvider({ children }) {
   const [items, setItems] = useState(load);
 
+  // Đăng xuất → xóa giỏ (máy dùng chung không lộ giỏ của người trước)
+  useEffect(() => {
+    const clear = () => setItems([]);
+    window.addEventListener('nutriva:session-end', clear);
+    return () => window.removeEventListener('nutriva:session-end', clear);
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem(KEY, JSON.stringify(items));

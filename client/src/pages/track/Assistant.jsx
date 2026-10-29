@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, ChevronRight, ThumbsUp, ThumbsDown, UserRound, BookOpen, Info, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Send, ChevronRight, ThumbsUp, ThumbsDown, UserRound, BookOpen, Info, Trash2 } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { useApi } from '../../lib/useApi.js';
 import { money } from '../../lib/format.js';
@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { CircleButton, cx } from '../../components/ds/index.jsx';
 import ProductImage from '../../components/ProductImage.jsx';
 import Nuti from '../../components/mascot/Nuti.jsx';
+import { productTitle } from '@shared/nutrition.js';
 
 const SUGGESTIONS = [
   'Hôm nay mình nên ăn thêm gì?',
@@ -18,7 +19,8 @@ const SUGGESTIONS = [
 ];
 
 // Bong bóng tin nhắn của Nuti
-function BotBubble({ m, idx, rated, onRate }) {
+function BotBubble({ m, onRate }) {
+  const rated = m.rating;
   return (
     <div className="flex items-start gap-2">
       <Nuti mood={m.error ? 'sorry' : 'happy'} size={36} animated={false} />
@@ -49,7 +51,7 @@ function BotBubble({ m, idx, rated, onRate }) {
           <Link to={`/shop/p/${m.product.slug}`} className="flex items-center gap-2 rounded-lg bg-white p-2 shadow-card transition hover:shadow-float active:scale-[0.99]">
             <ProductImage product={m.product} ratio="1/1" className="w-14 shrink-0 rounded-md" />
             <span className="min-w-0 flex-1">
-              <b className="block truncate text-sm text-primary">{m.product.type === 'diy' ? 'Set tự làm ' : 'Sữa hạt '}{m.product.name}</b>
+              <b className="block truncate text-sm text-primary">{productTitle(m.product)}</b>
               <span className="font-secondary text-xs font-bold text-brand-dark">Xem chi tiết • {money(m.product.price)}</span>
             </span>
             <ChevronRight size={18} className="shrink-0 text-subtle" aria-hidden="true" />
@@ -60,12 +62,12 @@ function BotBubble({ m, idx, rated, onRate }) {
             {m.link.label} <ChevronRight size={16} aria-hidden="true" />
           </Link>
         )}
-        {idx > 0 && !m.error && (
+        {m.id && !m.error && (
           <div className="-ml-2 flex">
-            <button type="button" aria-label="Hữu ích" aria-pressed={rated === 'up'} onClick={() => onRate('up')} className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface">
+            <button type="button" aria-label="Hữu ích" aria-pressed={rated === 'up'} onClick={() => onRate(rated === 'up' ? null : 'up')} className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface">
               <ThumbsUp size={16} className={rated === 'up' ? 'text-brand-dark' : 'text-subtle'} aria-hidden="true" />
             </button>
-            <button type="button" aria-label="Chưa hữu ích" aria-pressed={rated === 'down'} onClick={() => onRate('down')} className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface">
+            <button type="button" aria-label="Chưa hữu ích" aria-pressed={rated === 'down'} onClick={() => onRate(rated === 'down' ? null : 'down')} className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface">
               <ThumbsDown size={16} className={rated === 'down' ? 'text-warm-dark' : 'text-subtle'} aria-hidden="true" />
             </button>
           </div>
@@ -82,13 +84,33 @@ export default function Assistant() {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [rated, setRated] = useState({});
+  const [history, setHistory] = useState({ loading: true, more: false });
   const end = useRef();
   const input = useRef();
+  const scrollOnUpdate = useRef(true);
   const empty = msgs.length === 0;
 
+  // Lịch sử trò chuyện lưu ở server: đổi máy / mở lại app vẫn còn
+  const toMsg = (m) => ({ ...m, from: m.role === 'user' ? 'me' : 'bot' });
+  const loadHistory = async (before) => {
+    setHistory((h) => ({ ...h, loading: true }));
+    try {
+      const d = await api.get(`/assistant/history${before ? `?before=${before}` : ''}`);
+      scrollOnUpdate.current = !before;
+      setMsgs((cur) => [...d.messages.map(toMsg), ...cur]);
+      setHistory({ loading: false, more: d.more });
+    } catch {
+      setHistory({ loading: false, more: false });
+    }
+  };
   useEffect(() => {
-    if (!empty) end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!empty && scrollOnUpdate.current) end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    scrollOnUpdate.current = true;
   }, [msgs, busy, empty]);
 
   // Ô nhập tự giãn tối đa ~4 dòng
@@ -106,14 +128,33 @@ export default function Assistant() {
     setMsgs((m) => [...m, { from: 'me', text: message }]);
     setBusy(true);
     try {
-      // Gửi kèm lịch sử (bỏ tin lỗi) để Nuti hiểu ngữ cảnh
-      const history = msgs.filter((m) => !m.error).map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text }));
-      const r = await api.post('/assistant', { message, history });
+      // Ngữ cảnh hội thoại do server tự lấy từ lịch sử đã lưu
+      const r = await api.post('/assistant', { message });
       setMsgs((m) => [...m, { from: 'bot', ...r }]);
     } catch (e) {
       setMsgs((m) => [...m, { from: 'bot', text: e.message, error: true }]);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const rate = async (id, rating) => {
+    setMsgs((list) => list.map((m) => (m.id === id ? { ...m, rating } : m)));
+    try {
+      await api.post(`/assistant/messages/${id}/rating`, { rating });
+    } catch {
+      /* đánh giá không quan trọng — bỏ qua lỗi mạng */
+    }
+  };
+
+  const clearHistory = async () => {
+    if (!window.confirm('Xóa toàn bộ lịch sử trò chuyện với Nuti?')) return;
+    try {
+      await api.del('/assistant/history');
+      setMsgs([]);
+      setHistory({ loading: false, more: false });
+    } catch (e) {
+      window.alert(e.message);
     }
   };
 
@@ -131,12 +172,16 @@ export default function Assistant() {
           </p>
         </div>
         {!empty && (
-          <CircleButton icon={RotateCcw} label="Cuộc trò chuyện mới" onClick={() => { setMsgs([]); setRated({}); }} className="bg-white text-primary shadow-pill" size={44} iconSize={18} />
+          <CircleButton icon={Trash2} label="Xóa lịch sử trò chuyện" onClick={clearHistory} className="bg-white text-primary shadow-pill" size={44} iconSize={18} />
         )}
       </header>
 
       <main className="flex min-h-[calc(100dvh-64px)] flex-col gap-4 px-4 pb-[calc(140px+var(--safe-b))] pt-4" aria-live="polite">
-        {empty ? (
+        {empty && history.loading ? (
+          <div className="flex flex-1 items-center justify-center pt-16" role="status" aria-label="Đang tải lịch sử trò chuyện">
+            <Nuti mood="thinking" size={88} />
+          </div>
+        ) : empty ? (
           <section className="flex flex-1 flex-col items-center gap-4 pt-6 text-center">
             <Nuti mood="wave" size={132} label="Nuti, linh vật NUTRIVA, đang vẫy tay chào" />
             <div className="flex flex-col gap-1">
@@ -161,11 +206,16 @@ export default function Assistant() {
           </section>
         ) : (
           <>
+            {history.more && (
+              <button type="button" disabled={history.loading} onClick={() => loadHistory(msgs.find((m) => m.id)?.id)} className="self-center rounded-full bg-white px-4 py-2 text-sm font-bold text-brand-dark shadow-pill disabled:opacity-50">
+                {history.loading ? 'Đang tải…' : 'Xem tin nhắn cũ hơn'}
+              </button>
+            )}
             {msgs.map((m, i) =>
               m.from === 'bot' ? (
-                <BotBubble key={i} m={m} idx={i} rated={rated[i]} onRate={(v) => setRated({ ...rated, [i]: v })} />
+                <BotBubble key={m.id ?? `bot-${i}`} m={m} onRate={(v) => rate(m.id, v)} />
               ) : (
-                <div key={i} className="flex justify-end">
+                <div key={m.id ?? `me-${i}`} className="flex justify-end">
                   <div className="max-w-[80%] whitespace-pre-wrap rounded-xl rounded-br-sm bg-brand-dark px-4 py-2 text-base leading-6 text-white">{m.text}</div>
                 </div>
               ),

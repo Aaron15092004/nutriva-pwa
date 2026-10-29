@@ -7,8 +7,9 @@ import { useCart } from '../../context/CartContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { cx } from '../ds/index.jsx';
 import ProductImage from '../ProductImage.jsx';
+import { productTitle } from '@shared/nutrition.js';
 
-export const productTitle = (p) => `${p.type === 'diy' ? 'Set tự làm' : 'Sữa hạt'} ${p.name}`;
+export { productTitle };
 
 // Nút + có phản hồi: chuyển thành dấu tích 1,2 giây sau khi thêm
 function AddButton({ p, size = 40 }) {
@@ -49,7 +50,9 @@ export function ProductCard({ p, conflict, className = '' }) {
       <Link to={`/shop/p/${p.slug}`} className="relative block" aria-label={productTitle(p)}>
         <ProductImage product={p} className="transition-transform duration-300 ease-out group-hover:scale-[1.02]" />
         <span className="absolute left-2 top-2 flex flex-col items-start gap-1">
-          {p.type === 'diy' && <span className="rounded-full bg-white/95 px-2 py-1 font-secondary text-2xs font-bold text-recipe shadow-pill">Tự làm</span>}
+          {p.badge && <span className="rounded-full bg-warm-main px-2 py-1 font-secondary text-2xs font-bold text-white shadow-pill">{p.badge}</span>}
+          {p.type === 'diy' && <span className="rounded-full bg-white/95 px-2 py-1 font-secondary text-2xs font-bold text-recipe shadow-pill">Tự nấu</span>}
+          {p.type === 'treat' && <span className="rounded-full bg-white/95 px-2 py-1 font-secondary text-2xs font-bold text-cookie shadow-pill">Từ sữa hạt</span>}
           {p.stock === 0 && <span className="rounded-full bg-primary/80 px-2 py-1 font-secondary text-2xs font-bold text-white">Hết hàng</span>}
           {lowStock && <span className="rounded-full bg-warm-light px-2 py-1 font-secondary text-2xs font-bold text-warm-dark">Còn {p.stock}</span>}
         </span>
