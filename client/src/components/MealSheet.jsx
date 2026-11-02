@@ -143,7 +143,7 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
 
   // Mặc định mở "Gần đây" nếu có, không thì vào tìm kiếm
   useEffect(() => {
-    if (open && quick.data) setTab(recent.length ? 'recent' : favorites.length ? 'fav' : 'dish');
+    if (open && quick.data) setTab(recent.length ? 'recent' : favorites.length ? 'fav' : 'search');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, Boolean(quick.data)]);
 
@@ -383,7 +383,7 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
                 {!quick.loading && !(tab === 'recent' ? recent : favorites).length && (
                   <li className="flex flex-col items-center gap-2 py-8 text-center">
                     <p className="text-sm text-muted">{tab === 'recent' ? 'Món bạn ghi sẽ hiện ở đây để thêm lại chỉ với 1 chạm.' : 'Bấm ☆ cạnh món ăn để lưu vào Yêu thích.'}</p>
-                    <button type="button" onClick={() => setTab('dish')} className="h-10 rounded-full bg-brand-dark px-4 text-sm font-bold text-white">Chọn món nấu</button>
+                    <button type="button" onClick={() => setTab('search')} className="h-10 rounded-full bg-brand-dark px-4 text-sm font-bold text-white">Tìm thực phẩm</button>
                   </li>
                 )}
               </ul>
