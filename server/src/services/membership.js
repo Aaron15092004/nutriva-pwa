@@ -8,7 +8,7 @@ import { nowInTz, addDays } from './scheduler.js';
 // Nhắc nhở chỉ dành cho tài khoản còn hạn gói.
 // Kích hoạt / gia hạn bằng: mã in trên chai (QR hoặc nhập tay) • đơn mua trong app đã thanh toán • admin cộng tay.
 const DAY_MS = 86400000;
-export const DEFAULTS = { enabled: true, freePlanDays: 3, daysPerBottle: 2, daysPerSet: 4, daysPerTreat: 0, expiryNoticeDays: 2 };
+export const DEFAULTS = { enabled: true, freePlanDays: 3, daysPerBottle: 2, daysPerSet: 4, daysPerTreat: 0, expiryNoticeDays: 2, codesPerReward: 4, rewardDays: 3 };
 
 export async function membershipConfig() {
   const s = await getSettings();
@@ -71,6 +71,7 @@ export async function status(user) {
     trialLeft: started ? Math.max(0, Math.min(cfg.freePlanDays, cfg.freePlanDays - trialDayIndex(user, today))) : 0, // số ngày dùng thử còn lại, tính cả hôm nay
     daysPerBottle: cfg.daysPerBottle,
     daysPerSet: cfg.daysPerSet,
+    reward: await rewardStatus(user, cfg),
   };
 }
 
@@ -132,8 +133,25 @@ export async function redeem(user, raw) {
   // Giữ chỗ nguyên tử: 2 người cùng nhập 1 mã → chỉ 1 người được
   const claimed = await ActivationCode.findOneAndUpdate({ _id: doc._id, status: 'new' }, { status: 'used', usedBy: user._id, usedAt: new Date() }, { new: true });
   if (!claimed) throw new HttpError(409, 'Mã này vừa được sử dụng');
-  const until = await grantDays(user._id, doc.days, { source: 'code', ref: prettyCode(code), note: batch.name });
-  return { days: doc.days, until };
+  let until = await grantDays(user._id, doc.days, { source: 'code', ref: prettyCode(code), note: batch.name });
+  // Tích điểm: mỗi mã = 1 điểm; đủ N điểm → thưởng thêm ngày (mỗi mốc chỉ thưởng 1 lần vì đếm theo mã đã dùng)
+  const cfg = await membershipConfig();
+  let reward = 0;
+  if (cfg.codesPerReward > 0 && cfg.rewardDays > 0) {
+    const n = await ActivationCode.countDocuments({ usedBy: user._id, status: 'used' });
+    if (n % cfg.codesPerReward === 0) {
+      reward = cfg.rewardDays;
+      until = await grantDays(user._id, reward, { source: 'reward', ref: `${n} mã`, note: `Thưởng tích đủ ${cfg.codesPerReward} mã` });
+    }
+  }
+  return { days: doc.days, reward, until };
+}
+
+// Tiến độ tích điểm (thẻ "tem" ở trang Gói NUTRIVA)
+export async function rewardStatus(user, cfg) {
+  if (!(cfg.codesPerReward > 0 && cfg.rewardDays > 0)) return null;
+  const n = await ActivationCode.countDocuments({ usedBy: user._id, status: 'used' });
+  return { every: cfg.codesPerReward, days: cfg.rewardDays, codes: n, progress: n % cfg.codesPerReward, rewards: Math.floor(n / cfg.codesPerReward) };
 }
 
 // Số ngày sử dụng của 1 đơn: mỗi đơn vị × số ngày theo sản phẩm (hoặc theo loại trong Cài đặt)

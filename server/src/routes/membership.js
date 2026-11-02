@@ -48,7 +48,7 @@ router.post(
       await audit(req, 'membership.redeem', { entity: 'User', entityId: req.user._id, summary: `+${r.days} ngày` });
       track('membership.redeem', { user: req.user, req, props: { days: r.days, via: req.body?.via === 'qr' ? 'qr' : 'manual' } });
       req.user.membership = { ...(req.user.membership?.toObject?.() ?? {}), until: r.until };
-      res.json({ days: r.days, until: r.until, membership: await status(req.user) });
+      res.json({ days: r.days, reward: r.reward, until: r.until, membership: await status(req.user) });
     } catch (e) {
       await audit(req, 'membership.redeem_failed', { ok: false, entity: 'User', entityId: req.user._id, summary: e.message?.slice(0, 120) });
       throw e;

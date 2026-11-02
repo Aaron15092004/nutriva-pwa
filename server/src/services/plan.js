@@ -1,4 +1,5 @@
 import { MEALS, computeHealth } from '../../../shared/nutrition.js';
+import { dishImage } from '../../../shared/foodImages.js';
 
 // Kế hoạch ăn uống: tính từ hồ sơ + danh mục món (DB) + sản phẩm sữa (DB) + lựa chọn của người dùng.
 // ctx = { products, dishes } — nạp 1 lần mỗi request.
@@ -51,7 +52,8 @@ const dishItem = (d) => ({
   meal: d.meal,
   name: d.name,
   tag: d.tag,
-  image: d.image,
+  category: d.category,
+  image: dishImage(d),
   kcal: d.kcal,
   protein: d.protein,
   carb: d.carb,

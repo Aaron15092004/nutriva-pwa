@@ -11,7 +11,7 @@ import { buildMealPlans } from './data/meal-plans.js';
 export async function seedIfEmpty() {
   if (!(await Product.exists({}))) {
     const all = [...PRODUCTS, ...TREATS];
-    await Product.insertMany(all.map((p, i) => ({ ...p, sort: i, steps: p.type === 'diy' ? DIY_STEPS : [] })));
+    await Product.insertMany(all.map((p, i) => ({ ...p, sort: i, steps: p.type === 'diy' ? (p.steps?.length ? p.steps : DIY_STEPS) : p.steps ?? [] })));
     console.log(`[seed] ${all.length} sản phẩm`);
   }
   if (!(await Food.exists({}))) {

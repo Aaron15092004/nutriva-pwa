@@ -4,7 +4,7 @@ import { FOOD_GROUPS } from '@shared/nutrition.js';
 import { ChipTabs } from './ds/charts.jsx';
 import { api } from '../lib/api.js';
 import { num } from '../lib/format.js';
-import { FOOD_ICON } from './meals.js';
+import { FoodThumb } from './food/FoodArt.jsx';
 
 const LIMIT = 60;
 const GROUP_LABEL = Object.fromEntries(FOOD_GROUPS.map((g) => [g.id, g.label]));
@@ -31,13 +31,10 @@ export function useFoods(enabled = true) {
 
 // Một dòng thực phẩm trong danh sách chọn
 export function FoodRow({ food, note, onPick, trailing }) {
-  const I = FOOD_ICON[food.group];
   return (
     <li className="flex items-center gap-2 border-b border-surface last:border-0">
       <button type="button" className="flex min-h-14 min-w-0 flex-1 items-center gap-4 py-2 text-left" onClick={() => onPick(food)}>
-        <span className="grid size-10 shrink-0 place-items-center rounded-md bg-brand-light text-brand-dark" aria-hidden="true">
-          <I size={20} />
-        </span>
+        <FoodThumb item={food} size={44} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-base font-semibold text-primary">{food.name}</span>
           <span className="block truncate font-secondary text-xs text-muted">{note ?? `${num(food.kcal)} kcal / 100 g • ${GROUP_LABEL[food.group] ?? ''}`}</span>

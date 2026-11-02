@@ -8,7 +8,7 @@ import { Field, StepsInput, ImageInput, NumInput, numError, vnd } from './kit.js
 import { SALES_CHANNELS } from '@shared/nutrition.js';
 
 // Mặc định khớp server (services/membership.js, models Setting.interstitial) — cài đặt cũ chưa có 2 mục này
-const MEMBERSHIP = { enabled: true, freePlanDays: 3, daysPerBottle: 2, daysPerSet: 4, daysPerTreat: 0, expiryNoticeDays: 2 };
+const MEMBERSHIP = { enabled: true, freePlanDays: 3, daysPerBottle: 2, daysPerSet: 4, daysPerTreat: 0, expiryNoticeDays: 2, codesPerReward: 4, rewardDays: 3 };
 const INTERSTITIAL = { enabled: true, everyNav: 6, minMinutes: 5, skipSeconds: 3, maxPerDay: 4, skipMembers: false };
 
 // Ô số có kiểm tra khoảng ngay khi nhập (server vẫn kẹp lại giới hạn khi lưu)
@@ -169,6 +169,8 @@ export default function SettingsPage() {
               <NumberField id="mb" label="Mỗi chai sữa hạt cộng (ngày)" max={60} value={s.membership.daysPerBottle} onChange={(daysPerBottle) => setMember({ daysPerBottle })} />
               <NumberField id="ms" label="Mỗi gói hạt tự nấu cộng (ngày)" max={120} value={s.membership.daysPerSet} onChange={(daysPerSet) => setMember({ daysPerSet })} />
               <NumberField id="mt" label="Mỗi món ăn vặt cộng (ngày)" hint="Thường để 0" max={60} value={s.membership.daysPerTreat} onChange={(daysPerTreat) => setMember({ daysPerTreat })} />
+              <NumberField id="mr" label="Tích điểm: quét đủ (mã)" suffix="mã" hint="Mỗi mã = 1 tem; 0 = tắt tích điểm" max={50} value={s.membership.codesPerReward} onChange={(codesPerReward) => setMember({ codesPerReward })} />
+              <NumberField id="md" label="…thì thưởng thêm (ngày)" suffix="ngày" hint="Cộng tự động khi đủ tem" max={60} value={s.membership.rewardDays} onChange={(rewardDays) => setMember({ rewardDays })} />
             </div>
             <p className="xs muted">Sản phẩm có ô “Ngày dùng app mỗi đơn vị” riêng (trang Sản phẩm) sẽ dùng số đó thay cho mức chung. Ví dụ gói định kỳ 7 chai/tuần → +{7 * (s.membership.daysPerBottle ?? 0)} ngày mỗi kỳ thanh toán.</p>
           </section>

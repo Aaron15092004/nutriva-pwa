@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trash2, ChevronLeft, Plus, Star, CopyPlus, CloudOff } from 'lucide-react';
+import { Trash2, ChevronLeft, Plus, Star, CopyPlus, CloudOff, Search, Milk } from 'lucide-react';
 import { MEALS } from '@shared/nutrition.js';
 import { api } from '../lib/api.js';
 import { useApi } from '../lib/useApi.js';
@@ -10,8 +10,81 @@ import { Sheet, ErrorNote } from './ui.jsx';
 import { PrimaryButton } from './ds/form.jsx';
 import { ChipTabs } from './ds/charts.jsx';
 import { cx } from './ds/index.jsx';
-import { FOOD_ICON, MEAL_STYLE, sumMeal } from './meals.js';
+import { MEAL_STYLE, sumMeal } from './meals.js';
 import FoodSearchList, { FoodRow, useFoods } from './FoodSearchList.jsx';
+import { FoodThumb, DishDetail, useDishes } from './food/FoodArt.jsx';
+import { logBottle } from '../lib/milk.js';
+import { flavorOf, FLAVORS } from './brand/art.js';
+
+const strip = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+
+// Gợi ý sữa hạt NUTRIVA: 1 chạm ghi 1 chai (330 ml) vào bữa đang mở
+function MilkPicks({ onPick, busy }) {
+  const { data } = useApi('/products?type=milk');
+  const items = (data?.products ?? []).filter((p) => FLAVORS[p.line]);
+  if (!items.length) return null;
+  return (
+    <section aria-label="Gợi ý sữa hạt NUTRIVA" className="flex flex-col gap-2">
+      <p className="flex items-center gap-1 text-sm font-bold text-primary"><Milk size={16} className="text-brand-main" aria-hidden="true" /> Thêm sữa hạt NUTRIVA</p>
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {items.map((p) => {
+          const f = flavorOf(p.line);
+          return (
+            <button key={p.slug} type="button" disabled={busy} onClick={() => onPick(p)} aria-label={`Ghi 1 chai sữa hạt ${p.name}`} className="flex w-24 shrink-0 flex-col items-center gap-1 rounded-lg bg-white p-2 shadow-pill transition active:scale-95 disabled:opacity-60">
+              <span className="relative block h-20 w-full overflow-hidden rounded-md" style={{ background: `linear-gradient(160deg, ${f.bg[0]}, ${f.bg[1]})` }} aria-hidden="true">
+                <img src={`/img/products/hero-${p.line}.webp`} alt="" loading="lazy" className="absolute left-1/2 top-1 w-9 -translate-x-1/2 drop-shadow-[0_4px_6px_rgba(40,30,10,0.25)]" />
+                <span className="absolute bottom-1 right-1 grid size-6 place-items-center rounded-full bg-brand-dark text-white"><Plus size={14} /></span>
+              </span>
+              <span className="w-full truncate text-xs font-bold text-primary">{p.name}</span>
+              <span className="font-secondary text-2xs text-muted">{p.nutrition?.kcal ?? 170} kcal/chai</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// Danh sách món nấu: món của bữa đang mở lên trước, tìm không dấu
+function DishList({ dishes, meal, onPick }) {
+  const [q, setQ] = useState('');
+  const [all, setAll] = useState(false);
+  const k = strip(q.trim());
+  const list = dishes
+    .filter((d) => (all || k || d.meal === meal) && (!k || strip(d.name).includes(k)))
+    .slice(0, 60);
+  return (
+    <div className="flex flex-col gap-4">
+      <label className="flex h-12 items-center gap-2 rounded-full border border-border bg-white px-4 focus-within:border-brand-main focus-within:ring-2 focus-within:ring-brand-soft">
+        <Search size={20} className="shrink-0 text-subtle" aria-hidden="true" />
+        <input type="search" placeholder="Tìm món nấu: phở, cơm gà, canh…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Tìm món nấu" className="h-full min-w-0 flex-1 bg-transparent text-base text-primary outline-none placeholder:text-subtle" />
+      </label>
+      {!k && (
+        <div className="flex gap-2">
+          {[[false, 'Hợp bữa này'], [true, 'Tất cả món']].map(([v, l]) => (
+            <button key={l} type="button" aria-pressed={all === v} onClick={() => setAll(v)} className={cx('h-9 rounded-full px-4 text-sm font-semibold', all === v ? 'bg-brand-dark text-white' : 'bg-surface text-primary')}>{l}</button>
+          ))}
+        </div>
+      )}
+      <ul className="rounded-lg bg-white px-4">
+        {!dishes.length && <li className="py-8 text-center text-sm text-muted">Đang tải món ăn…</li>}
+        {list.map((d) => (
+          <li key={d.id} className="border-b border-surface last:border-0">
+            <button type="button" onClick={() => onPick(d)} className="flex min-h-14 w-full items-center gap-4 py-2 text-left">
+              <FoodThumb item={{ ...d, kind: 'dish' }} size={44} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-base font-semibold text-primary">{d.name}</span>
+                <span className="block truncate font-secondary text-xs text-muted">{num(d.kcal)} kcal / phần • {d.ingredients.length ? `${d.ingredients.length} nguyên liệu` : 'món sẵn'}</span>
+              </span>
+              <span className="shrink-0 text-xs font-bold text-brand-dark">Xem</span>
+            </button>
+          </li>
+        ))}
+        {dishes.length > 0 && !list.length && <li className="py-8 text-center text-sm text-muted">Không tìm thấy “{q}”</li>}
+      </ul>
+    </div>
+  );
+}
 
 function MacroRow({ kcal, protein, carb, fat, big }) {
   const cells = [
@@ -48,6 +121,8 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
   const quick = useApi(open ? '/foods/quick' : null);
   const [tab, setTab] = useState('recent');
   const [picked, setPicked] = useState(null);
+  const [pickedDish, setPickedDish] = useState(null);
+  const { dishes } = useDishes(open);
   const [grams, setGrams] = useState('');
   const [mealId, setMealId] = useState(meal);
   const [saving, setSaving] = useState(false);
@@ -62,18 +137,18 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
     setMealId(meal);
     setError('');
     setPicked(presetFood ?? null);
+    setPickedDish(null);
     setGrams(presetFood ? String(presetFood.serving) : '');
   }, [open, meal, presetFood]);
 
   // Mặc định mở "Gần đây" nếu có, không thì vào tìm kiếm
   useEffect(() => {
-    if (open && quick.data) setTab(recent.length ? 'recent' : favorites.length ? 'fav' : 'search');
+    if (open && quick.data) setTab(recent.length ? 'recent' : favorites.length ? 'fav' : 'dish');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, Boolean(quick.data)]);
 
   const g = Number(grams) || 0;
   const calc = picked && macrosOf(picked, g);
-  const PickedIcon = picked ? FOOD_ICON[picked.group] : null;
   const items = log?.meals?.[mealId] ?? [];
   const total = sumMeal(items);
   const label = MEALS.find((m) => m.id === mealId)?.label ?? '';
@@ -109,6 +184,41 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
       setGrams('');
     } catch (e) {
       setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addDish = async (portion) => {
+    setSaving(true);
+    setError('');
+    try {
+      const cid = newCid();
+      const d = await sendOrQueue(`/logs/${date}/meals/${mealId}`, { dishId: pickedDish.id, portion, cid });
+      if (d.queued) {
+        const entry = { _id: cid, cid, dishId: pickedDish.id, name: pickedDish.name, grams: Math.round(pickedDish.grams * portion), kcal: Math.round(pickedDish.kcal * portion), protein: +(pickedDish.protein * portion).toFixed(1), carb: +(pickedDish.carb * portion).toFixed(1), fat: +(pickedDish.fat * portion).toFixed(1), pending: true };
+        onLog({ ...log, meals: { ...log?.meals, [mealId]: [...items, entry] } });
+        toast('Đã lưu trên máy — sẽ đồng bộ khi có mạng');
+      } else {
+        onLog(d.log);
+        toast(`Đã thêm ${pickedDish.name} vào ${label.toLowerCase()}`);
+      }
+      setPickedDish(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addMilk = async (p) => {
+    setSaving(true);
+    try {
+      const r = await logBottle(date, log, p, mealId);
+      onLog(r.log);
+      toast(r.queued ? 'Đã lưu trên máy — sẽ đồng bộ khi có mạng' : `Đã thêm 1 chai sữa hạt ${p.name} vào ${label.toLowerCase()}`);
+    } catch (e) {
+      toast(e.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -176,7 +286,7 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
           </div>
         </div>
 
-        {!picked && items.length > 0 && (
+        {!picked && !pickedDish && items.length > 0 && (
           <ul className="rounded-lg bg-surface px-4">
             {items.map((it) => (
               <li key={it._id} className="flex items-center gap-2 border-b border-white py-2 last:border-0">
@@ -197,15 +307,21 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
           </ul>
         )}
 
-        {picked ? (
+        {pickedDish ? (
+          <div className="flex flex-col gap-4">
+            <button type="button" className="inline-flex min-h-10 items-center gap-1 self-start text-sm font-bold text-brand-dark" onClick={() => setPickedDish(null)}>
+              <ChevronLeft size={18} aria-hidden="true" /> Chọn món khác
+            </button>
+            <DishDetail dish={pickedDish} onAdd={addDish} adding={saving} addLabel={`Thêm vào ${label.toLowerCase()}`} />
+            <ErrorNote error={error} />
+          </div>
+        ) : picked ? (
           <div className="flex flex-col gap-4">
             <button type="button" className="inline-flex min-h-10 items-center gap-1 self-start text-sm font-bold text-brand-dark" onClick={() => setPicked(null)}>
               <ChevronLeft size={18} aria-hidden="true" /> Chọn món khác
             </button>
             <div className="flex items-center gap-4">
-              <span className="grid size-14 shrink-0 place-items-center rounded-lg bg-brand-light text-brand-dark" aria-hidden="true">
-                <PickedIcon size={26} />
-              </span>
+              <FoodThumb item={picked} size={56} />
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-bold text-primary">{picked.name}</p>
                 <p className="font-secondary text-sm text-muted">
@@ -236,6 +352,7 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
           </div>
         ) : (
           <>
+            <MilkPicks onPick={addMilk} busy={saving} />
             {items.length === 0 && (
               <button type="button" disabled={saving} onClick={copyYesterday} className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-dashed border-brand-pastel bg-brand-light px-4 text-sm font-bold text-brand-deep disabled:opacity-50">
                 <CopyPlus size={18} aria-hidden="true" /> Ăn giống hôm qua? Chép {label.toLowerCase()} hôm qua
@@ -248,11 +365,14 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
               items={[
                 { id: 'recent', label: `Gần đây${recent.length ? ` (${recent.length})` : ''}` },
                 { id: 'fav', label: `Yêu thích${favorites.length ? ` (${favorites.length})` : ''}` },
-                { id: 'search', label: 'Tìm thực phẩm' },
+                { id: 'dish', label: 'Món nấu' },
+                { id: 'search', label: 'Thực phẩm' },
               ]}
             />
             <ErrorNote error={loadError} />
-            {tab === 'search' ? (
+            {tab === 'dish' ? (
+              <DishList dishes={dishes} meal={mealId} onPick={(d) => { setPickedDish(d); setError(''); }} />
+            ) : tab === 'search' ? (
               <FoodSearchList foods={foods} onPick={(f) => pick(f)} />
             ) : (
               <ul className="rounded-lg bg-white px-4">
@@ -263,7 +383,7 @@ export default function MealSheet({ open, onClose, meal, date, log, targets, onL
                 {!quick.loading && !(tab === 'recent' ? recent : favorites).length && (
                   <li className="flex flex-col items-center gap-2 py-8 text-center">
                     <p className="text-sm text-muted">{tab === 'recent' ? 'Món bạn ghi sẽ hiện ở đây để thêm lại chỉ với 1 chạm.' : 'Bấm ☆ cạnh món ăn để lưu vào Yêu thích.'}</p>
-                    <button type="button" onClick={() => setTab('search')} className="h-10 rounded-full bg-brand-dark px-4 text-sm font-bold text-white">Tìm thực phẩm</button>
+                    <button type="button" onClick={() => setTab('dish')} className="h-10 rounded-full bg-brand-dark px-4 text-sm font-bold text-white">Chọn món nấu</button>
                   </li>
                 )}
               </ul>

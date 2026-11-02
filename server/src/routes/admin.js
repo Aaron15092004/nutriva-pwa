@@ -123,7 +123,7 @@ router.use(
     search: ['name', 'key'],
     filters: ['group', 'nutrientGroup', 'plant', 'active'],
     sort: { group: 1, name: 1 },
-    writable: ['key', 'name', 'group', 'nutrientGroup', 'kcal', 'protein', 'carb', 'fat', 'fiber', 'water', 'ash', 'waste', 'micros', 'serving', 'unit', 'plant', 'allergens', 'source', 'active'],
+    writable: ['key', 'name', 'group', 'nutrientGroup', 'kcal', 'protein', 'carb', 'fat', 'fiber', 'water', 'ash', 'waste', 'micros', 'serving', 'unit', 'plant', 'allergens', 'source', 'image', 'active'],
   }),
 );
 router.use(
@@ -671,6 +671,8 @@ router.put(
         daysPerSet: clamp(membership.daysPerSet, 0, 120, 4),
         daysPerTreat: clamp(membership.daysPerTreat, 0, 60, 0),
         expiryNoticeDays: clamp(membership.expiryNoticeDays, 0, 14, 2),
+        codesPerReward: clamp(membership.codesPerReward, 0, 50, 4),
+        rewardDays: clamp(membership.rewardDays, 0, 60, 3),
       };
     }
     if (interstitial && typeof interstitial === 'object') {

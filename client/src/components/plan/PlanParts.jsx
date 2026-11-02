@@ -1,4 +1,5 @@
 // Thành phần dùng chung cho Kế hoạch ăn: macro, tổng ngày, dòng món, khối bữa, thẻ kế hoạch.
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, Wheat, Droplet, ChevronRight, Milk, Lock, LockOpen } from 'lucide-react';
 import { PLAN_STYLES } from '@shared/nutrition.js';
@@ -7,6 +8,7 @@ import { colors } from '../../theme/tokens.js';
 import { FOOD_ICON } from '../meals.js';
 import { ProgressBar, fmt, cx } from '../ds/index.jsx';
 import { useMembership, memberState } from '../../lib/membership.js';
+import { DishSheet } from '../food/FoodArt.jsx';
 
 export const STYLE_LABEL = Object.fromEntries(PLAN_STYLES.map((s) => [s.id, s.label]));
 const MACROS = [
@@ -80,6 +82,13 @@ export function DaySummary({ kcal, protein, carb, fat, eaten, children }) {
 // Ảnh món / ô icon theo nhóm thực phẩm (màu theo bữa)
 export function ItemThumb({ item, size = 56 }) {
   const t = MEAL_THEME[item.meal] ?? MEAL_THEME.snack;
+  // Ảnh emoji 3D (nền trong suốt) → đặt trên nền màu bữa; ảnh chụp → phủ kín ô
+  if (item.image?.startsWith('/img/foods/'))
+    return (
+      <span className={cx('grid shrink-0 place-items-center rounded-md', t.card)} style={{ width: size, height: size }} aria-hidden="true">
+        <img src={item.image} alt="" loading="lazy" className="h-[76%] w-[76%] object-contain" />
+      </span>
+    );
   if (item.image) return <img src={item.image} alt="" loading="lazy" className="shrink-0 rounded-md object-cover" style={{ width: size, height: size }} />;
   const Icon = item.kind === 'dish' || !item.group ? t.icon : FOOD_ICON[item.group];
   return (
@@ -99,12 +108,25 @@ export const isMilkItem = (it) => it.food === 'sua-hat-nutriva' || it.kind === '
 const milkLink = (it) => (it.kind === 'milk' && it.slug ? `/shop/p/${it.slug}` : '/shop?tab=milk');
 
 // Một món trong thực đơn: thumb, tên, định lượng • kcal, macro, nút hành động bên phải
+// Món nấu: bấm ảnh / tên → xem nguyên liệu (modal)
 export function PlanItemRow({ item, action, children, buy = true }) {
+  const [open, setOpen] = useState(false);
+  const isDish = item.kind === 'dish' && !item.missing;
+  const dishKey = item.dish ?? item.id;
   return (
     <li className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-card">
-      <ItemThumb item={item} />
+      {isDish ? (
+        <button type="button" onClick={() => setOpen(true)} aria-label={`Xem nguyên liệu ${item.name}`} className="shrink-0 rounded-md transition active:scale-95">
+          <ItemThumb item={item} />
+        </button>
+      ) : (
+        <ItemThumb item={item} />
+      )}
       <div className="min-w-0 flex-1">
         <p className={cx('line-clamp-2 text-base font-bold leading-6', item.missing ? 'text-muted line-through' : 'text-primary')}>{item.name}</p>
+        {isDish && (
+          <button type="button" onClick={() => setOpen(true)} className="text-xs font-bold text-brand-dark underline decoration-dotted underline-offset-2">Xem nguyên liệu</button>
+        )}
         <p className="font-secondary text-xs text-muted">
           {amountText(item)} • {fmt(item.kcal)} kcal
         </p>
@@ -117,6 +139,7 @@ export function PlanItemRow({ item, action, children, buy = true }) {
         {children}
       </div>
       {action}
+      {isDish && open && <DishSheet dishKey={dishKey} portion={item.portion ?? 1} onClose={() => setOpen(false)} />}
     </li>
   );
 }

@@ -47,7 +47,7 @@ const SURVEY = {
   obstacle: ['habits', 'emotional', 'support', 'busy', 'knowledge', 'other'],
   milkHabit: ['daily', 'sometimes', 'never'],
   logging: ['every', 'sometimes', 'never'],
-  milkTimes: ['breakfast', 'workout', 'afternoon', 'night'],
+  milkTimes: ['breakfast', 'workout', 'afternoon', 'night', 'anytime'],
 };
 function cleanSurvey(s = {}) {
   const out = {};

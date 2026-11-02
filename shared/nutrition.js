@@ -8,10 +8,11 @@ export const GOALS = [
 
 // Hệ số vận động R dùng cho TDEE = BMR × R
 export const ACTIVITY_LEVELS = [
-  { id: 'sedentary', label: 'Ít vận động', desc: 'Ngồi nhiều, ít tập', factor: 1.2 },
-  { id: 'light', label: 'Vận động nhẹ', desc: '1–3 buổi/tuần', factor: 1.375 },
-  { id: 'moderate', label: 'Vận động vừa phải', desc: '3–5 buổi/tuần', factor: 1.55 },
-  { id: 'active', label: 'Vận động nhiều', desc: '6–7 buổi/tuần', factor: 1.725 },
+  { id: 'sedentary', label: 'Ít vận động', desc: 'Ngồi văn phòng cả ngày, hầu như không tập', factor: 1.2 },
+  { id: 'light', label: 'Vận động nhẹ', desc: 'Tập nhẹ 1–3 buổi/tuần hoặc việc đi lại nhẹ', factor: 1.375 },
+  { id: 'moderate', label: 'Vận động vừa', desc: 'Tập 3–5 buổi/tuần hoặc đứng, đi lại liên tục', factor: 1.55 },
+  { id: 'active', label: 'Vận động nặng', desc: 'Tập cường độ cao 6–7 buổi/tuần hoặc việc chân tay', factor: 1.725 },
+  { id: 'veryActive', label: 'Vận động rất nặng', desc: 'Tập 2 buổi/ngày hoặc lao động nặng + tập', factor: 1.9 },
 ];
 
 export const DIETS = [

@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { DailyLog, Activity, User } from '../models/index.js';
 import { ah, requireAuth, HttpError } from '../middleware/auth.js';
 import { suggestFoods } from '../data/foods.js';
-import { loadFoods } from '../services/catalog.js';
+import { loadFoods, loadDishes } from '../services/catalog.js';
+import { foodImage, dishImage } from '../../../shared/foodImages.js';
 import { addDays } from '../services/plan.js';
 import { track } from '../services/events.js';
 
@@ -28,7 +29,54 @@ const getLog = (user, date) =>
   DailyLog.findOneAndUpdate({ user: user._id, date }, { $setOnInsert: { user: user._id, date } }, { upsert: true, new: true });
 
 // Một món → bản ghi nhật ký (dinh dưỡng thực phẩm luôn tính ở server)
+// Món nấu cho màn ghi món: dinh dưỡng 1 khẩu phần + nguyên liệu (kèm ảnh) để xem trong modal
+async function dishList() {
+  const [dishes, foods] = await Promise.all([loadDishes(), loadFoods()]);
+  const byKey = new Map(foods.map((f) => [f.key, f]));
+  return dishes.map((d) => {
+    const ingredients = (d.ingredients ?? []).map((i) => {
+      const f = byKey.get(i.food);
+      return { food: i.food, name: i.name || f?.name || i.food, grams: i.grams, image: foodImage(f ?? { name: i.name }), kcal: f ? Math.round((f.kcal * i.grams) / 100) : null };
+    });
+    return {
+      id: d.id,
+      key: d.key,
+      name: d.name,
+      meal: d.meal,
+      category: d.category,
+      tag: d.tag,
+      image: dishImage(d),
+      kcal: d.kcal,
+      protein: d.protein,
+      carb: d.carb,
+      fat: d.fat,
+      fiber: d.fiber,
+      plant: d.plant,
+      allergens: d.allergens,
+      grams: ingredients.reduce((s, i) => s + (i.grams ?? 0), 0) || 300,
+      ingredients,
+    };
+  });
+}
+
 async function toEntry(body, foods) {
+  // Món nấu theo khẩu phần (0,5–3 phần) → dinh dưỡng tính từ công thức
+  if (body?.dishId) {
+    const dish = (await dishList()).find((d) => d.id === body.dishId || d.key === body.dishId);
+    if (!dish) throw new HttpError(404, 'Không tìm thấy món ăn');
+    const portion = Number(body.portion ?? 1);
+    if (!(portion >= 0.25 && portion <= 5)) throw new HttpError(400, 'Khẩu phần từ 0,25 đến 5');
+    return {
+      cid: cidOf(body),
+      dishId: dish.id,
+      name: dish.name,
+      grams: Math.round(dish.grams * portion),
+      kcal: Math.round(dish.kcal * portion),
+      protein: +(dish.protein * portion).toFixed(1),
+      carb: +(dish.carb * portion).toFixed(1),
+      fat: +(dish.fat * portion).toFixed(1),
+    };
+  }
   const grams = Number(body?.grams);
   if (!(grams > 0 && grams <= 3000)) throw new HttpError(400, 'Định lượng phải từ 1 đến 3000 g');
   const cid = cidOf(body);
@@ -74,7 +122,8 @@ async function pushEntries(user, date, meal, entries) {
   return updated ?? DailyLog.findById(log._id);
 }
 
-router.get('/foods', ah(async (req, res) => res.json({ foods: await loadFoods() })));
+router.get('/foods', ah(async (req, res) => res.json({ foods: (await loadFoods()).map((f) => ({ ...f, image: foodImage(f) })) })));
+router.get('/dishes', ah(async (req, res) => res.json({ dishes: await dishList() })));
 router.get(
   '/foods/suggest',
   ah(async (req, res) => res.json({ foods: suggestFoods(req.user.profile.toObject(), await loadFoods()) })),
@@ -97,7 +146,7 @@ router.get(
       ]),
       loadFoods(),
     ]);
-    const byId = new Map(foods.map((f) => [f.id, f]));
+    const byId = new Map(foods.map((f) => [f.id, { ...f, image: foodImage(f) }]));
     res.json({
       recent: rows.map((r) => byId.get(r._id) && { ...byId.get(r._id), lastGrams: r.grams, times: r.n }).filter(Boolean),
       favorites: (req.user.favoriteFoods ?? []).map((id) => byId.get(id)).filter(Boolean),

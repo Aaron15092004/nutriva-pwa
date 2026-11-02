@@ -11,7 +11,7 @@ import { cx } from '../../components/ds/index.jsx';
 import ProductImage from '../../components/ProductImage.jsx';
 
 // Icon minh họa 4 bước mặc định; admin thêm bước thứ 5+ thì dùng icon chung (trước đây bị lỗi trắng trang)
-const STEP_ICONS = [Blend, Droplets, Flame, Refrigerator];
+const STEP_ICONS = [Droplets, Blend, Refrigerator, Flame]; // sơ chế → chế biến → bảo quản
 const SAVED_KEY = 'nutriva_saved_guides';
 
 const readSaved = () => {
@@ -21,6 +21,35 @@ const readSaved = () => {
     return [];
   }
 };
+
+// Nội dung 1 bước: "• Tên: mô tả" → gạch đầu dòng (tên in đậm); "Cách N – …" → tiêu đề phụ; còn lại là đoạn văn
+function StepText({ text = '' }) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const out = [];
+  let bullets = [];
+  const flush = () => {
+    if (bullets.length) out.push(<ul key={`u${out.length}`} className="flex flex-col gap-1">{bullets}</ul>);
+    bullets = [];
+  };
+  lines.forEach((l, i) => {
+    if (l.startsWith('• ')) {
+      const body = l.slice(2);
+      const c = body.indexOf(':');
+      bullets.push(
+        <li key={i} className="flex gap-2">
+          <span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand-main" aria-hidden="true" />
+          <span>{c > 0 ? <><b className="text-primary">{body.slice(0, c + 1)}</b>{body.slice(c + 1)}</> : body}</span>
+        </li>,
+      );
+      return;
+    }
+    flush();
+    if (/^Cách \d/.test(l)) out.push(<p key={i} className="mt-1 font-bold text-brand-deep">{l}</p>);
+    else out.push(<p key={i}>{l}</p>);
+  });
+  flush();
+  return <div className="mt-1 flex flex-col gap-2 text-sm text-secondary">{out}</div>;
+}
 
 export default function DiyGuide() {
   const { slug } = useParams();
@@ -93,7 +122,7 @@ export default function DiyGuide() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <b className={cx('text-primary', checked && 'line-through')}>{s.title}</b>
-                        <p className="text-sm text-muted">{s.text}</p>
+                        <StepText text={s.text} />
                       </div>
                       <button
                         type="button"

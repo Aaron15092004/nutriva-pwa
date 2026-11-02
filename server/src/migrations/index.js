@@ -5,6 +5,8 @@ import { DISH_RECIPES } from '../data/dishes.js';
 import { buildDishes } from '../services/dishes.js';
 import { buildMealPlans } from '../data/meal-plans.js';
 import { acquireLock, releaseLock } from '../services/locks.js';
+import { foodImage } from '../../../shared/foodImages.js';
+import { DIY_GUIDES } from '../data/diy-guides.js';
 
 // Migration dữ liệu có phiên bản: mỗi mục chạy đúng 1 lần (ghi vào collection `migrations`).
 // Thêm migration mới: thêm phần tử vào cuối mảng, đặt tên theo ngày + mô tả; up() phải chạy lại được an toàn (idempotent).
@@ -134,6 +136,27 @@ export const MIGRATIONS = [
     async up() {
       const r = await User.updateMany({ 'membership.trialStart': { $in: [null] }, role: { $ne: 'admin' } }, [{ $set: { 'membership.trialStart': '$createdAt' } }]);
       return `${r.modifiedCount} tài khoản cũ được gán ngày bắt đầu dùng thử = ngày đăng ký`;
+    },
+  },
+  {
+    name: '2026-11-02-food-images',
+    // Ảnh minh họa cho toàn bộ thực phẩm chưa có ảnh (emoji 3D theo tên/nhóm — shared/foodImages.js)
+    async up() {
+      const foods = await Food.find({ $or: [{ image: null }, { image: '' }] }, { name: 1, group: 1 }).lean();
+      if (foods.length) await Food.bulkWrite(foods.map((f) => ({ updateOne: { filter: { _id: f._id }, update: { $set: { image: foodImage(f) } } } })));
+      return `${foods.length} thực phẩm có ảnh`;
+    },
+  },
+  {
+    name: '2026-11-03-diy-guides',
+    // Hướng dẫn tự nấu riêng cho từng gói hạt (sơ chế / 2 cách chế biến / bảo quản) theo tài liệu của NUTRIVA
+    async up() {
+      let n = 0;
+      for (const [line, steps] of Object.entries(DIY_GUIDES)) {
+        const r = await Product.updateOne({ slug: `set-${line}`, type: 'diy' }, { $set: { steps } });
+        n += r.modifiedCount;
+      }
+      return `${n} gói hạt cập nhật hướng dẫn`;
     },
   },
 ];

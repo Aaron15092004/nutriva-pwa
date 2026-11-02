@@ -1,3 +1,5 @@
+import { DIY_GUIDES } from './diy-guides.js';
+
 // Dữ liệu khởi tạo (seed) — sau đó quản lý trong trang Admin.
 // 6 dòng sữa hạt NUTRIVA (theo bao bì thật): mỗi dòng có bản pha sẵn (chai 330 ml) + gói hạt tự nấu 100 g.
 // Ảnh: /img/products/sua-<key>.webp (chai), /img/products/set-<key>.webp (gói hạt).
@@ -100,7 +102,8 @@ export const PRODUCTS = LINES.flatMap((l) => [
     image: `/img/products/set-${l.key}.webp`,
     description: `Gói hạt tự nấu đã định lượng sẵn — tự tay nấu sữa hạt tươi tại nhà với nguyên liệu tuyển chọn từ NUTRIVA. ${l.blurb}`,
     nutrition: l.nutrition,
-    storage: 'Nguyên liệu khô: nơi thoáng mát, tránh ánh nắng, dùng trong 3 tháng. Sữa sau khi làm: bảo quản lạnh, dùng trong 2 ngày.',
+    storage: 'Nguyên liệu khô: nơi thoáng mát, tránh ánh nắng, dùng trong 3 tháng. Sữa sau khi làm: bảo quản lạnh ≤4°C, dùng trong 3–4 ngày.',
+    steps: DIY_GUIDES[l.key] ?? [],
   },
 ]);
 

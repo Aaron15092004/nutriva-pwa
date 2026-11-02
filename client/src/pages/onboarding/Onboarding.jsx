@@ -5,6 +5,7 @@ import {
   Scale, HeartPulse, BicepsFlexed, Shirt, SmilePlus, BatteryCharging, Shuffle, HeartCrack, UsersRound, Hourglass, GraduationCap,
   MessageCircleQuestion, Carrot, UtensilsCrossed, WheatOff, Repeat, Sprout, Nut, Flower2, Bean, CandyOff, Candy, ChefHat,
   Sunrise, Dumbbell, Sun, MoonStar, ClipboardCheck, NotebookPen, CircleOff,
+  Clock3,
 } from 'lucide-react';
 import { ACTIVITY_LEVELS, DIETS, INGREDIENTS, FLAVORS, calcBMI, bmiCategory, calcWHtR, whtrCategory, computeHealth } from '@shared/nutrition.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -150,6 +151,7 @@ const OPT = {
     { id: 'workout', label: 'Sau khi tập luyện', desc: 'Bổ sung đạm thực vật', icon: Dumbbell, color: C.blue },
     { id: 'afternoon', label: 'Bữa phụ buổi chiều', desc: 'Thay đồ ăn vặt nhiều đường', icon: Sun, color: C.cookie },
     { id: 'night', label: 'Trước khi ngủ', desc: 'Nhẹ bụng, dễ ngủ', icon: MoonStar, color: C.night },
+    { id: 'anytime', label: 'Lúc nào cũng được', desc: 'Uống khi thấy tiện, không cố định giờ', icon: Clock3, color: C.brand },
   ],
   logging: [
     { id: 'every', label: 'Mọi bữa ăn', icon: ClipboardCheck, color: C.brand },
@@ -444,7 +446,14 @@ export default function Onboarding() {
           multi
           options={OPT.milkTimes}
           value={survey.milkTimes ?? []}
-          onSelect={(x) => setSurvey((s) => ({ ...s, milkTimes: (s.milkTimes ?? []).includes(x) ? s.milkTimes.filter((y) => y !== x) : [...(s.milkTimes ?? []), x] }))}
+          onSelect={(x) =>
+            setSurvey((s) => {
+              const cur = s.milkTimes ?? [];
+              if (cur.includes(x)) return { ...s, milkTimes: cur.filter((y) => y !== x) };
+              // "Lúc nào cũng được" đi một mình; chọn giờ cụ thể thì bỏ "lúc nào cũng được"
+              return { ...s, milkTimes: x === 'anytime' ? ['anytime'] : [...cur.filter((y) => y !== 'anytime'), x] };
+            })
+          }
         />
       );
       canNext = (survey.milkTimes ?? []).length > 0;

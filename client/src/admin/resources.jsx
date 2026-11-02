@@ -97,6 +97,7 @@ export const foods = {
     ACTIVE,
   ],
   columns: [
+    { key: 'image', label: '', render: (it) => (it.image ? <img src={it.image} alt="" style={{ objectFit: 'contain', padding: 4 }} /> : null) },
     { key: 'name', label: 'Tên', render: (it) => <><b>{it.name}</b><div className="xs muted">{it.source}</div></> },
     { key: 'group', label: 'Nhóm', render: (it) => GROUP_LABEL[it.group] },
     { key: 'kcal', label: 'kcal', num: true },
@@ -127,6 +128,7 @@ export const foods = {
     { key: 'serving', label: 'Khẩu phần chuẩn', type: 'number', required: true, min: 1, max: 2000, suffix: 'g' },
     { key: 'unit', label: 'Tên khẩu phần', required: true, maxLength: 30, hint: 'vd: 1 chén, 1 quả' },
     { key: 'source', label: 'Nguồn số liệu', hint: 'vd: Viện Dinh dưỡng, USDA' },
+    { key: 'image', label: 'Ảnh minh họa', type: 'image', hint: 'Mặc định: biểu tượng 3D theo tên thực phẩm' },
     { key: 'plant', label: 'Chay', type: 'checkbox', checkLabel: 'Phù hợp ăn chay linh hoạt' },
     { key: 'allergens', label: 'Chứa thành phần cần tránh', type: 'chips', options: ALLERGEN_OPTIONS },
     { key: 'active', label: 'Hiển thị', type: 'checkbox', checkLabel: 'Cho phép tìm & ghi nhật ký' },

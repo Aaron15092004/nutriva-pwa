@@ -1,4 +1,5 @@
 import { MEALS, FOOD_GROUPS } from '../../../shared/nutrition.js';
+import { foodImage, dishImage } from '../../../shared/foodImages.js';
 
 // Kế hoạch ăn: dinh dưỡng luôn tính từ bảng thực phẩm / món ăn hiện tại (ctx = { foods, dishes } đã nạp sẵn).
 const DAY_MS = 86400000;
@@ -24,7 +25,7 @@ export function resolveItem(it, ctx) {
       portion: p,
       name: it.label || d.name,
       category: d.category,
-      image: d.image,
+      image: dishImage(d),
       grams: grams || null,
       kcal: Math.round(d.kcal * p),
       protein: r1(d.protein * p),
@@ -41,6 +42,7 @@ export function resolveItem(it, ctx) {
     food: f.key,
     foodName: f.name,
     group: f.group,
+    image: foodImage(f),
     name: it.label || f.name,
     note: it.note,
     grams: it.grams,

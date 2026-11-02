@@ -317,7 +317,7 @@ export function OptionList({ options, value, onSelect, multi = false }) {
 export function LevelBars({ level }) {
   return (
     <span className="flex h-9 items-end gap-1" aria-hidden="true">
-      {[1, 2, 3, 4].map((i) => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <span key={i} className={cx('w-1.5 rounded-full', i <= level ? 'bg-warm-main' : 'bg-warm-soft')} style={{ height: 8 + i * 6 }} />
       ))}
     </span>

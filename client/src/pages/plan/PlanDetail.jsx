@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ShoppingBasket, MoreVertical, Trash2, Plus, Minus, Check, Milk, Lock } from 'lucide-react';
+import { ArrowLeft, ShoppingBasket, MoreVertical, Trash2, Plus, Minus, Check, Lock } from 'lucide-react';
 import { LockedCard } from '../../components/membership/Paywall.jsx';
+import PlanLock, { usePlanAccess } from '../../components/membership/PlanLock.jsx';
 import { openPaywall } from '../../lib/membership.js';
 import { MEALS } from '@shared/nutrition.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -9,10 +10,10 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { useApi, invalidate } from '../../lib/useApi.js';
 import { api } from '../../lib/api.js';
 import { today, parseDate } from '../../lib/format.js';
-import { Sheet, Skeleton, ErrorNote, Button } from '../../components/ui.jsx';
+import { Sheet, Skeleton, ErrorNote, Button, TopBar } from '../../components/ui.jsx';
 import { CircleButton, fmt, cx } from '../../components/ds/index.jsx';
 import FoodSearchList, { useFoods } from '../../components/FoodSearchList.jsx';
-import { DaySummary, MealBlock, PlanItemRow, PlanPills, kcalRange, isMilkItem } from '../../components/plan/PlanParts.jsx';
+import { DaySummary, MealBlock, PlanItemRow, PlanPills, kcalRange } from '../../components/plan/PlanParts.jsx';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const shortDate = (s) => parseDate(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -106,7 +107,7 @@ export default function PlanDetail() {
     return m;
   }, [plan]);
   // Số lần sữa hạt NUTRIVA xuất hiện trong cả kế hoạch (gợi ý đặt gói định kỳ)
-  const milkCount = useMemo(() => (plan?.days ?? []).reduce((n, d) => n + d.meals.reduce((k, m) => k + m.items.filter(isMilkItem).length, 0), 0), [plan]);
+  const access = usePlanAccess();
 
   // Mở chế độ chỉnh sửa ngay sau khi sao chép
   if (plan?.mine && plan.raw && params.get('edit') === '1' && !draft) {
@@ -230,6 +231,17 @@ export default function PlanDetail() {
     setAdding(null);
   };
 
+  // Chưa có quyền dùng kế hoạch (chưa dùng thử / hết hạn) → khóa cả trang
+  if (access.ready && !access.open)
+    return (
+      <>
+        <TopBar title={plan.title} fallback="/plan?tab=explore" />
+        <main className="flex flex-col gap-4 px-4 pb-[calc(32px+var(--safe-b))] pt-2">
+          <PlanLock state={access.state} m={access.m} />
+        </main>
+      </>
+    );
+
   return (
     <>
       <main className="relative min-h-dvh overflow-x-clip bg-background pb-[calc(160px+var(--safe-b))]">
@@ -296,21 +308,6 @@ export default function PlanDetail() {
               <DaySummary kcal={day.kcal} protein={day.protein} carb={day.carb} fat={day.fat} />
             )}
           </section>
-
-          {milkCount > 0 && !editing && (
-            <section aria-labelledby="plan-milk" className="flex flex-col gap-2 rounded-xl bg-breakfast-card p-4">
-              <h2 id="plan-milk" className="flex items-center gap-2 text-base font-bold text-primary">
-                <Milk size={20} className="text-brand-dark" aria-hidden="true" /> Sữa hạt trong kế hoạch này
-              </h2>
-              <p className="text-sm text-secondary">
-                Có <b>{milkCount}</b> lần dùng sữa hạt NUTRIVA trong {plan.days.length} ngày. Đặt gói định kỳ để luôn có sẵn sữa tươi mỗi sáng — tạm dừng bất cứ lúc nào.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Link to="/shop/subscribe" className="inline-flex h-10 items-center rounded-full bg-brand-dark px-4 text-sm font-bold text-white">Đặt gói định kỳ</Link>
-                <Link to="/shop?tab=milk" className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-bold text-brand-deep">Mua lẻ</Link>
-              </div>
-            </section>
-          )}
 
           {editing && (
             <p className="rounded-lg bg-warning p-4 text-sm text-secondary">

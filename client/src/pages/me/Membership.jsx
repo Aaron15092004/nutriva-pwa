@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { QrCode, Gift, ReceiptText, Clock, ShieldCheck, RefreshCw, ChevronRight, Sparkles, Lock } from 'lucide-react';
+import { QrCode, Gift, ReceiptText, Clock, ShieldCheck, RefreshCw, ChevronRight, Sparkles, Lock, Check } from 'lucide-react';
 import { api } from '../../lib/api.js';
 import { useApi } from '../../lib/useApi.js';
 import { useMembership, refreshLocked, fmtDate, memberState } from '../../lib/membership.js';
@@ -17,8 +17,8 @@ import { DayValueTiles, TrialButton } from '../../components/membership/Paywall.
 import { BottleScene } from '../../components/brand/MilkArt.jsx';
 import { flavorOf, FLAVORS } from '../../components/brand/art.js';
 
-const SOURCE = { code: 'Mã trên chai', order: 'Đơn hàng', admin: 'NUTRIVA tặng', migration: 'Quà ra mắt', revoke: 'Thu hồi' };
-const SOURCE_ICON = { code: QrCode, order: ReceiptText, admin: Gift, migration: Gift, revoke: Clock };
+const SOURCE = { code: 'Mã trên chai', order: 'Đơn hàng', admin: 'NUTRIVA tặng', migration: 'Quà ra mắt', revoke: 'Thu hồi', reward: 'Thưởng tích tem' };
+const SOURCE_ICON = { code: QrCode, order: ReceiptText, admin: Gift, migration: Gift, revoke: Clock, reward: Gift };
 // Hiển thị mã theo nhóm 5 ký tự: XXXXX-XXXXX
 const format = (raw) => {
   const c = raw.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 10);
@@ -98,6 +98,30 @@ function MemberCard({ m }) {
   );
 }
 
+// Thẻ tích điểm: mỗi mã quét = 1 tem; đủ tem → tự cộng thêm ngày
+function StampCard({ r }) {
+  const left = r.every - r.progress;
+  return (
+    <section aria-labelledby="stamp-title" className="flex flex-col gap-4 rounded-xl bg-white p-4 shadow-card">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="stamp-title" className="text-base font-bold text-primary">Tích tem đổi ngày dùng</h2>
+          <p className="text-xs text-muted">Quét đủ {r.every} mã → thưởng thêm {r.days} ngày miễn phí{r.rewards ? ` • đã nhận ${r.rewards} lần` : ''}</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-brand-light px-2 py-1 font-secondary text-xs font-bold text-brand-deep">{r.progress}/{r.every}</span>
+      </div>
+      <ol className="flex justify-between gap-2" aria-label={`Đã có ${r.progress} trên ${r.every} tem`}>
+        {Array.from({ length: r.every }, (_, i) => (
+          <li key={i} className={cx('grid aspect-square flex-1 place-items-center rounded-full border-2', i < r.progress ? 'border-brand-main bg-brand-main text-white' : 'border-dashed border-brand-pastel text-brand-pastel')} style={{ maxWidth: 56 }}>
+            {i < r.progress ? <Check size={20} aria-hidden="true" /> : i === r.every - 1 ? <Gift size={18} aria-hidden="true" /> : <QrCode size={16} aria-hidden="true" />}
+          </li>
+        ))}
+      </ol>
+      <p className="text-sm text-secondary">{left === r.every && !r.codes ? `Quét mã trên chai đầu tiên để bắt đầu tích tem.` : `Còn ${left} mã nữa để nhận +${r.days} ngày.`}</p>
+    </section>
+  );
+}
+
 // Minh họa vị trí mã: cổ chai + tem QR
 const QR_CELLS = [0, 1, 2, 4, 6, 7, 9, 11, 12, 13, 15];
 function CodeTagArt() {
@@ -167,7 +191,7 @@ export default function Membership() {
       setError('');
       try {
         const r = await api.post('/membership/redeem', { code: raw, via });
-        setDone({ days: r.days, until: r.until });
+        setDone({ days: r.days, reward: r.reward, until: r.until });
         setUser({ ...user, membership: { until: r.until } });
         setCode('');
         refreshLocked();
@@ -211,10 +235,13 @@ export default function Membership() {
       <main className="flex flex-col gap-6 px-4 pb-[calc(32px+var(--safe-b))]">
         <MemberCard m={m} />
 
+        {m?.reward && <StampCard r={m.reward} />}
+
         {done ? (
           <section role="status" className="flex flex-col items-center gap-2 rounded-xl bg-breakfast-card p-6 text-center shadow-card">
             <Nuti mood="dance" size={104} />
-            <p className="font-display text-3xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">+{done.days} ngày!</p>
+            <p className="font-display text-3xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">+{done.days + (done.reward ?? 0)} ngày!</p>
+            {done.reward > 0 && <p className="rounded-full bg-white px-4 py-1 text-sm font-bold text-brand-deep">Đủ tem — thưởng thêm {done.reward} ngày</p>}
             <p className="text-sm text-secondary">Kế hoạch đầy đủ và nhắc nhở đã mở. Dùng đến {fmtDate(done.until)}.</p>
             <div className="mt-2 flex gap-2">
               <Link to="/plan" className="inline-flex h-11 items-center rounded-full bg-brand-dark px-6 text-sm font-bold text-white">Xem kế hoạch</Link>

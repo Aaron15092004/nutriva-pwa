@@ -64,8 +64,23 @@ export default function AppBanners() {
   useEffect(() => {
     const onStale = () => regRef.current?.update().catch(() => {});
     window.addEventListener('nutriva:stale', onStale);
-    return () => window.removeEventListener('nutriva:stale', onStale);
-  }, []);
+    // Nút "Kiểm tra bản mới" (Cài đặt): tìm bản mới; có thì cập nhật ngay, không có thì tải lại trang cho chắc
+    const onCheck = async () => {
+      const reg = regRef.current;
+      try {
+        await reg?.update();
+      } catch {
+        /* mất mạng */
+      }
+      if (reg?.waiting) updateServiceWorker(true);
+      else window.location.reload();
+    };
+    window.addEventListener('nutriva:check-update', onCheck);
+    return () => {
+      window.removeEventListener('nutriva:stale', onStale);
+      window.removeEventListener('nutriva:check-update', onCheck);
+    };
+  }, [updateServiceWorker]);
 
   useEffect(() => {
     if (online) flushOutbox();

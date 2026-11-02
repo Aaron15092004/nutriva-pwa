@@ -104,7 +104,10 @@ export default function Settings() {
         <Group>
           <Row icon={LogOut} label="Đăng xuất" onClick={doLogout} danger />
         </Group>
-        <p className="text-center text-xs text-muted">NUTRIVA • Phiên bản 1.2</p>
+        <Group>
+          <Row icon={RefreshCw} label="Kiểm tra bản mới" sub={`Phiên bản ${typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev'} — app tự cập nhật, bấm nếu thấy giao diện cũ`} onClick={() => window.dispatchEvent(new Event('nutriva:check-update'))} />
+        </Group>
+        <p className="text-center text-xs text-muted">NUTRIVA • Phiên bản 1.3</p>
         <ChannelSheet open={channelsOpen} onClose={() => setChannelsOpen(false)} from="settings" />
       </main>
     </>

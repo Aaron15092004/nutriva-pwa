@@ -89,6 +89,7 @@ export default function AdminApp() {
         ))}
         <div className="foot stack" style={{ gap: 4 }}>
           <NavLink to="/"><ArrowLeft size={19} /> Về ứng dụng</NavLink>
+          <a href="#update" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new Event('nutriva:check-update')); }}><RefreshCw size={19} /> Kiểm tra bản mới</a>
           <span className="xs" style={{ padding: '4px 12px', opacity: 0.7 }}>{user.email}</span>
         </div>
       </nav>

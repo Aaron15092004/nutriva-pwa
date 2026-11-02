@@ -17,7 +17,7 @@ const ProfileSchema = new Schema(
     waistEstimated: { type: Boolean, default: false }, // vòng eo do app ước tính (người dùng chưa đo)
     targetWeightKg: { type: Number, min: 25, max: 250, default: null }, // cân nặng mục tiêu (onboarding)
     goal: { type: String, enum: ['maintain', 'gain', 'lose'], default: 'maintain' },
-    activity: { type: String, enum: ['sedentary', 'light', 'moderate', 'active'], default: 'light' },
+    activity: { type: String, enum: ['sedentary', 'light', 'moderate', 'active', 'veryActive'], default: 'light' },
     diet: { type: String, enum: ['flex-veg', 'normal', 'restricted'], default: 'normal' },
     flavor: { type: String, enum: ['beo-nhe', 'thanh-nhe', 'dam-vi'], default: 'beo-nhe' },
     sweetness: { type: String, enum: ['none', 'low'], default: 'none' },
@@ -71,6 +71,7 @@ UserSchema.pre('validate', function syncAge() {
 
 const LoggedFoodSchema = new Schema({
   foodId: String,
+  dishId: String, // món nấu (ghi theo khẩu phần)
   cid: String, // mã do client sinh: gửi lại (mất mạng, bấm 2 lần) không bị ghi trùng
   name: { type: String, required: true },
   grams: { type: Number, required: true, min: 1 },
@@ -175,6 +176,7 @@ const FoodSchema = new Schema(
     plant: { type: Boolean, default: true },
     allergens: { type: [String], default: [] },
     source: { type: String, default: 'Viện Dinh dưỡng' },
+    image: String, // ảnh minh họa (mặc định: emoji 3D theo tên — shared/foodImages.js)
     active: { type: Boolean, default: true },
   },
   { timestamps: true },
@@ -297,6 +299,8 @@ const SettingSchema = new Schema(
       daysPerSet: { type: Number, default: 4, min: 0 }, // gói hạt tự nấu ≈ 1 lít ≈ 3 chai
       daysPerTreat: { type: Number, default: 0, min: 0 },
       expiryNoticeDays: { type: Number, default: 2, min: 0, max: 14 },
+      codesPerReward: { type: Number, default: 4, min: 0, max: 50 }, // tích điểm: quét đủ N mã → thưởng (0 = tắt)
+      rewardDays: { type: Number, default: 3, min: 0, max: 60 }, // số ngày thưởng mỗi lần đủ điểm
     },
     // Quảng cáo toàn màn hình khi chuyển trang (dùng banner có vị trí "interstitial")
     interstitial: {
@@ -572,7 +576,7 @@ const MembershipGrantSchema = new Schema(
   {
     user: ref('User'),
     days: { type: Number, required: true }, // âm = thu hồi
-    source: { type: String, enum: ['code', 'order', 'admin', 'migration', 'revoke'], required: true },
+    source: { type: String, enum: ['code', 'order', 'admin', 'migration', 'revoke', 'reward'], required: true },
     ref: String, // mã kích hoạt / mã đơn
     note: String,
     by: String,

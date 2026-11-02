@@ -13,9 +13,9 @@ import { ChipTabs } from '../../components/ds/charts.jsx';
 import { HeroBackdrop } from '../../components/home/HomeHeader.jsx';
 import { sumLog } from '../../components/meals.js';
 import { DaySummary, MealBlock, PlanItemRow, PlanCard, PlanMiniCard, kcalRange } from '../../components/plan/PlanParts.jsx';
-import PromoCarousel from '../../components/promo/PromoCarousel.jsx';
 import { MilkTodayCard, TreatStrip } from '../../components/promo/MilkToday.jsx';
 import { LockedCard } from '../../components/membership/Paywall.jsx';
+import PlanLock, { usePlanAccess } from '../../components/membership/PlanLock.jsx';
 
 const TABS = [
   { id: 'mine', label: 'Thực đơn của bạn' },
@@ -197,28 +197,8 @@ function Explore() {
   if (error) return <ErrorNote error={error} />;
   const b = PLAN_BANDS.find((x) => x.id === band);
   const list = data.plans.filter((p) => p.kcalMin >= b.min && p.kcalMin < b.max);
-  // Kế hoạch "Sữa hạt mỗi ngày": mức calo gần mục tiêu nhất lên đầu
-  const milkPlans = data.plans
-    .filter((p) => p.style === 'nut-milk')
-    .sort((x, y) => Math.abs(x.kcalMin - mine.min) - Math.abs(y.kcalMin - mine.min));
   return (
     <div className="flex flex-col gap-6">
-      <PromoCarousel placement="plan" />
-      {milkPlans.length > 0 && (
-        <section aria-labelledby="milk-plans" className="flex flex-col gap-4">
-          <div>
-            <SectionHeader id="milk-plans" title="Sữa hạt mỗi ngày" />
-            <p className="text-sm text-muted">Bữa sáng & bữa phụ luôn có sữa hạt NUTRIVA — yến mạch ngâm, sinh tố, pudding hạt chia…</p>
-          </div>
-          <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {milkPlans.map((p, i) => (
-              <div key={p.id} className="flex w-72 shrink-0 snap-start">
-                <PlanCard plan={p} badge={i === 0 ? 'Hợp mức calo của bạn' : null} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
       {data.current && (
         <section aria-labelledby="cur-plan" className="flex flex-col gap-4">
           <SectionHeader id="cur-plan" title="Kế hoạch hiện tại của bạn" />
@@ -274,6 +254,7 @@ export default function Plan() {
   const date = params.get('date') ?? today();
   const set = (patch) => setParams({ tab, date, ...patch }, { replace: true });
   const title = TABS.find((t) => t.id === tab).label;
+  const access = usePlanAccess();
 
   return (
     <main className="relative min-h-dvh overflow-x-clip bg-gradient-to-b from-background via-surface to-background pb-[calc(var(--nav-h)+var(--safe-b)+24px)]">
@@ -283,12 +264,18 @@ export default function Plan() {
           <h1 className="font-display text-2xl font-bold text-brand-core [font-variation-settings:'SOFT'_100]">{title}</h1>
           <Link to="/me/edit?step=basic" className="font-secondary text-xs font-semibold text-brand-dark hover:text-brand-deep">Mục tiêu</Link>
         </header>
+        {access.ready && !access.open ? (
+          <PlanLock state={access.state} m={access.m} />
+        ) : (
+          <>
         <ChipTabs items={TABS} value={tab} onChange={(t) => set({ tab: t })} label="Thực đơn" />
         <div className={cx('flex flex-col gap-6')}>
           {tab === 'mine' && <MyMenu date={date} setDate={(d) => set({ date: d })} onExplore={() => set({ tab: 'explore' })} />}
           {tab === 'explore' && <Explore />}
           {tab === 'custom' && <Custom onExplore={() => set({ tab: 'explore' })} />}
         </div>
+          </>
+        )}
       </div>
     </main>
   );
